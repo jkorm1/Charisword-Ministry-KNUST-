@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: charisword_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: charisword
+      MYSQL_DATABASE: chariswordKnust
+      MYSQL_USER: charisword
+      MYSQL_PASSWORD: charisword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/01-create-database-schema.sql:/docker-entrypoint-initdb.d/schema.sqlm
+
+    networks:
+      - charisword_network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: charisword_phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: charisword
+      PMA_PASSWORD: charisword
+      MYSQL_ROOT_PASSWORD: charisword
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql
+    networks:
+      - charisword_network
+
+volumes:
+  mysql_data:
+
+networks:
+  charisword_network:
+    driver: bridge
