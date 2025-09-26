@@ -36,19 +36,47 @@ export async function POST(request: NextRequest) {
     }
 
     const [result] = await pool.execute(
-      `
-      INSERT INTO offerings (service_id, amount, date_recorded, recorded_by_user_id)
-      VALUES (?, ?, ?, ?)
-    `,
-      [service_id, amount, date_recorded, user?.user_id],
+      `INSERT INTO offerings 
+       (service_id, amount, date_recorded, recorded_by_user_id, created_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [service_id, amount, date_recorded, user?.user_id]
     )
 
     return NextResponse.json({
       message: "Offering recorded successfully",
-      offering_id: (result as any).insertId,
+      offering_id: (result as any).insertId
     })
   } catch (error) {
-    console.error("Record offering error:", error)
+    console.error("Create offering error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await getUserFromRequest(request)
+    requireRole(["admin", "finance_leader"])(user)
+
+    const { offering_id, amount, date_recorded } = await request.json()
+
+    if (!offering_id || !amount || !date_recorded) {
+      return NextResponse.json({ error: "Offering ID, amount, and date required" }, { status: 400 })
+    }
+
+    const [result] = await pool.execute(
+      `UPDATE offerings 
+       SET amount = ?, date_recorded = ?, updated_at = NOW()
+       WHERE offering_id = ?`,
+      [amount, date_recorded, offering_id]
+    )
+
+    return NextResponse.json({
+      message: "Offering updated successfully",
+      offering_id
+    })
+  } catch (error) {
+    console.error("Update offering error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+

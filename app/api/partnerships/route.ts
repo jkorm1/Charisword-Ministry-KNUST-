@@ -8,76 +8,76 @@ export async function GET(request: NextRequest) {
     requireRole(["admin", "finance_leader"])(user)
 
     const { searchParams } = new URL(request.url)
-    const memberId = searchParams.get("memberId")
+    const from = searchParams.get("from")
+    const to = searchParams.get("to")
+    const cellId = searchParams.get("cellId")
 
-    if (memberId) {
-      // Get partnerships for specific member
-      const [rows] = await pool.execute(
-        `
-        SELECT p.partnership_id, p.amount, p.date_given, p.created_at,
-               m.full_name as member_name, u.email as recorded_by
-        FROM partnerships p
-        LEFT JOIN members m ON p.member_id = m.member_id
-        LEFT JOIN users u ON p.recorded_by_user_id = u.user_id
-        WHERE p.member_id = ?
-        ORDER BY p.date_given DESC
-      `,
-        [memberId],
-      )
+    let query = `
+      SELECT 
+        m.member_id,
+        m.full_name,
+        c.name as cell_name,
+        COALESCE(p.total_amount, 0) as total_partnerships,
+        p.partnership_details,
+        p.last_contribution_date
+      FROM members m
+      LEFT JOIN cells c ON m.cell_id = c.cell_id
+      LEFT JOIN (
+        SELECT 
+          member_id,
+          SUM(amount) as total_amount,
+          GROUP_CONCAT(
+            CONCAT(
+              '{',
+              '"amount":"', amount,
+              '","date":"', date_given,
+              '","partner_name":"', IFNULL(partner_name, ''),
+              '"}'
+            ) SEPARATOR '|'
+          ) as partnership_details,
+          MAX(date_given) as last_contribution_date
+        FROM partnerships 
+        WHERE 1=1
+    `
 
-      return NextResponse.json(rows)
-    } else {
-      // Get partnership summary for all members
-      const [rows] = await pool.execute(`
-        SELECT m.member_id, m.full_name, c.name as cell_name,
-               COALESCE(SUM(p.amount), 0) as total_partnerships,
-               COUNT(p.partnership_id) as partnership_count,
-               MAX(p.date_given) as last_partnership_date
-        FROM members m
-        LEFT JOIN partnerships p ON m.member_id = p.member_id
-        LEFT JOIN cells c ON m.cell_id = c.cell_id
-        WHERE m.membership_status IN ('Member', 'Associate')
-        GROUP BY m.member_id, m.full_name, c.name
-        ORDER BY total_partnerships DESC, m.full_name ASC
-      `)
+    const params: any[] = []
 
-      return NextResponse.json(rows)
+    if (from) {
+      query += " AND date_given >= ?"
+      params.push(from)
     }
+
+    if (to) {
+      query += " AND date_given <= ?"
+      params.push(to)
+    }
+
+    query += `
+        GROUP BY member_id
+      ) p ON m.member_id = p.member_id
+      WHERE m.membership_status IN ('Member', 'Associate')
+    `
+
+    if (cellId) {
+      query += " AND m.cell_id = ?"
+      params.push(cellId)
+    }
+
+    query += " ORDER BY total_partnerships DESC, m.full_name ASC"
+
+    const [rows] = await pool.execute(query, params)
+    
+    // Process partnership details for each member
+    const processedRows = rows.map((row: any) => ({
+      ...row,
+      partnership_details: row.partnership_details 
+        ? row.partnership_details.split('|').map(detail => JSON.parse(detail))
+        : []
+    }))
+
+    return NextResponse.json(processedRows)
   } catch (error) {
-    console.error("Get partnerships error:", error)
+    console.error("Get partnership reports error:", error)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getUserFromRequest(request)
-    requireRole(["admin", "finance_leader"])(user)
-
-    const { member_id, partner_name, amount, date_given } = await request.json()
-
-    if (!amount || !date_given) {
-      return NextResponse.json({ error: "Amount and date required" }, { status: 400 })
-    }
-
-    if (!member_id && !partner_name) {
-      return NextResponse.json({ error: "Either member or partner name required" }, { status: 400 })
-    }
-
-    const [result] = await pool.execute(
-      `
-      INSERT INTO partnerships (member_id, partner_name, amount, date_given, recorded_by_user_id)
-      VALUES (?, ?, ?, ?, ?)
-    `,
-      [member_id || null, partner_name, amount, date_given, user?.user_id],
-    )
-
-    return NextResponse.json({
-      message: "Partnership recorded successfully",
-      partnership_id: (result as any).insertId,
-    })
-  } catch (error) {
-    console.error("Record partnership error:", error)
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
