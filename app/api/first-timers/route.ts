@@ -2,15 +2,16 @@ import { type NextRequest, NextResponse } from "next/server"
 import pool from "@/lib/db"
 import { getUserFromRequest, requireRole } from "@/lib/auth"
 
+// app/api/first-timers/route.ts
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
     requireRole(["admin", "usher"])(user)
 
-    const { full_name, gender, residence, phone, email, inviter_member_id, service_id, status } = await request.json()
+    const { service_id, first_timers } = await request.json()
 
-    if (!full_name || !gender || !service_id || !status) {
-      return NextResponse.json({ error: "Name, gender, service, and status required" }, { status: 400 })
+    if (!service_id || !Array.isArray(first_timers) || first_timers.length === 0) {
+      return NextResponse.json({ error: "Service ID and first-timers data required" }, { status: 400 })
     }
 
     const connection = await pool.getConnection()
@@ -18,81 +19,68 @@ export async function POST(request: NextRequest) {
     try {
       await connection.beginTransaction()
 
-      // Create first-timer record
-      const [firstTimerResult] = await connection.execute(
-        `
-        INSERT INTO first_timers (
-          full_name, gender, residence, phone, email, 
-          inviter_member_id, service_id, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-        [full_name, gender, residence, phone, email, inviter_member_id, service_id, status],
-      )
+      const results = []
 
-      let memberId: number
-      let membershipStatus: string
+      for (const firstTimer of first_timers) {
+        const { full_name, gender, residence, phone, email, inviter_member_id } = firstTimer
 
-      if (status === "Stay") {
-        // Create member record for Stay status
-        membershipStatus = "Member"
-
-        // Get inviter's cell and fold info
-        let cellId = null,
-          foldId = null
-        if (inviter_member_id) {
-          const [inviterRows] = await connection.execute("SELECT cell_id, fold_id FROM members WHERE member_id = ?", [
-            inviter_member_id,
-          ])
-          if ((inviterRows as any[]).length > 0) {
-            cellId = (inviterRows as any[])[0].cell_id
-            foldId = (inviterRows as any[])[0].fold_id
-          }
+        if (!full_name || !gender) {
+          await connection.rollback()
+          return NextResponse.json({ error: "Name and gender required for all first-timers" }, { status: 400 })
         }
 
+        // Create first-timer record
+        const [firstTimerResult] = await connection.execute(
+          `
+          INSERT INTO first_timers (
+            full_name, gender, residence, phone, email, 
+            inviter_member_id, service_id, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+          [full_name, gender, residence, phone, email, inviter_member_id, service_id, firstTimer.status],
+        )
+
+        const [inviterInfo] = await connection.execute(
+          "SELECT cell_id FROM members WHERE member_id = ?",
+          [inviter_member_id]
+        );
+
+const inviterCellId = (inviterInfo as any[])[0]?.cell_id;
+
+        // Create temporary member record
         const [memberResult] = await connection.execute(
           `
           INSERT INTO members (
             full_name, gender, residence, phone, email, 
-            cell_id, fold_id, inviter_member_id, membership_status, date_joined
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            inviter_member_id, membership_status, date_joined, cell_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)
         `,
-          [full_name, gender, residence, phone, email, cellId, foldId, inviter_member_id, membershipStatus],
+          [full_name, gender, residence, phone, email, inviter_member_id, firstTimer.status === "Stay" ? "Member" : "FirstTimer", inviterCellId],
         )
 
-        memberId = (memberResult as any).insertId
-      } else {
-        // Create temporary member record for Visit status
-        membershipStatus = "FirstTimer"
+        const memberId = (memberResult as any).insertId
 
-        const [memberResult] = await connection.execute(
+        // Create attendance record
+        await connection.execute(
           `
-          INSERT INTO members (
-            full_name, gender, residence, phone, email, 
-            inviter_member_id, membership_status, date_joined
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+          INSERT INTO attendance (service_id, member_id, status, recorded_by_user_id, recorded_at)
+          VALUES (?, ?, 'Present', ?, NOW())
         `,
-          [full_name, gender, residence, phone, email, inviter_member_id, membershipStatus],
+          [service_id, memberId, user?.user_id],
         )
 
-        memberId = (memberResult as any).insertId
+        results.push({
+          first_timer_id: (firstTimerResult as any).insertId,
+          member_id: memberId,
+          membership_status: "FirstTimer"
+        })
       }
-
-      // Create attendance record
-      await connection.execute(
-        `
-        INSERT INTO attendance (service_id, member_id, status, recorded_by_user_id, recorded_at)
-        VALUES (?, ?, 'Present', ?, NOW())
-      `,
-        [service_id, memberId, user?.user_id],
-      )
 
       await connection.commit()
 
       return NextResponse.json({
-        message: "First-timer recorded successfully",
-        first_timer_id: (firstTimerResult as any).insertId,
-        member_id: memberId,
-        membership_status: membershipStatus,
+        message: `${results.length} first-timers recorded successfully`,
+        results
       })
     } catch (error) {
       await connection.rollback()
@@ -101,10 +89,11 @@ export async function POST(request: NextRequest) {
       connection.release()
     }
   } catch (error) {
-    console.error("Record first-timer error:", error)
+    console.error("Record first-timers error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
 
 export async function GET(request: NextRequest) {
   try {

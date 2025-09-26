@@ -28,10 +28,10 @@ export async function POST(request: NextRequest) {
 
       const allMemberIds = (allMembers as any[]).map((m) => m.member_id)
 
-      // Insert attendance records
+      // First, insert all attendance records
       for (const memberId of allMemberIds) {
         const status = present_member_ids.includes(memberId) ? "Present" : "Absent"
-
+        
         await connection.execute(
           `
           INSERT INTO attendance (service_id, member_id, status, recorded_by_user_id, recorded_at)
@@ -39,6 +39,30 @@ export async function POST(request: NextRequest) {
         `,
           [service_id, memberId, status, user?.user_id],
         )
+      }
+
+      // Then, check and update FirstTimers to Associates
+      for (const memberId of present_member_ids) {
+        const [memberInfo] = await connection.execute(
+          "SELECT membership_status FROM members WHERE member_id = ?",
+          [memberId]
+        )
+
+        if ((memberInfo as any[])[0]?.membership_status === "FirstTimer") {
+          // Check attendance count including the current one
+          const [attendanceCount] = await connection.execute(
+            "SELECT COUNT(*) as count FROM attendance WHERE member_id = ? AND status = 'Present'",
+            [memberId]
+          )
+
+          // If this is their second attendance or more, update to Associate
+          if ((attendanceCount as any[])[0].count >= 2) {
+            await connection.execute(
+              "UPDATE members SET membership_status = 'Associate' WHERE member_id = ?",
+              [memberId]
+            )
+          }
+        }
       }
 
       await connection.commit()
@@ -59,6 +83,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+
 
 export async function GET(request: NextRequest) {
   try {

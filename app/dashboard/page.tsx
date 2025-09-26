@@ -1,37 +1,118 @@
-"use client"
+"use client";
 
-import { useAuth } from "@/hooks/use-auth"
-import { ProtectedRoute } from "@/components/protected-route"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Users, DollarSign, Calendar, UserPlus, Church, Phone, MapPin, LogOut } from "lucide-react"
-import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth";
+import { ProtectedRoute } from "@/components/protected-route";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Users,
+  DollarSign,
+  Calendar,
+  UserPlus,
+  Church,
+  Phone,
+  MapPin,
+  LogOut,
+} from "lucide-react";
+import Link from "next/link";
+import { useState, useEffect } from "react";
 
 function DashboardContent() {
-  const { user, logout } = useAuth()
+  const { user, logout } = useAuth();
+  const [stats, setStats] = useState({
+    totalMembers: 0,
+    weeklyAttendance: 0,
+    monthlyFirstTimers: 0,
+    monthlyOfferings: 0,
+    activities: [], // Changed from recentActivities to match API
+    lastUpdated: null,
+  });
+  const [loading, setLoading] = useState(true);
+  const [cellStats, setCellStats] = useState([]); // Added separate state for cell stats
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchCellStats(); // Added to fetch cell stats
+    // Set up periodic refresh every 30 seconds
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Added function to fetch cell stats
+  const fetchCellStats = async () => {
+    try {
+      const response = await fetch("/api/cells");
+      if (response.ok) {
+        const data = await response.json();
+        setCellStats(data);
+      }
+    } catch (error) {
+      console.error("Error fetching cell stats:", error);
+    }
+  };
+
+  const isDataFresh = () => {
+    if (!stats.lastUpdated) return false;
+    const lastUpdate = new Date(stats.lastUpdated);
+    const now = new Date();
+    const diffInMinutes = (now.getTime() - lastUpdate.getTime()) / (1000 * 60);
+    return diffInMinutes < 1; // Data is fresh if less than 1 minute old
+  };
+
+  const fetchDashboardData = async () => {
+    try {
+      const response = await fetch("/api/dashboard/stats");
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data.stats);
+      }
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
-    await logout()
-  }
+    await logout();
+  };
 
   const getRoleDisplay = (role: string) => {
     switch (role) {
       case "admin":
-        return "Admin"
+        return "Admin";
       case "usher":
-        return "Usher"
+        return "Usher";
       case "cell_leader":
-        return "Cell Leader"
+        return "Cell Leader";
       case "finance_leader":
-        return "Finance Leader"
+        return "Finance Leader";
       default:
-        return role
+        return role;
     }
-  }
+  };
 
-  const canAccessFinance = user?.role === "admin" || user?.role === "finance_leader"
-  const canAccessAttendance = user?.role === "admin" || user?.role === "usher" || user?.role === "cell_leader"
+  const canAccessFinance =
+    user?.role === "admin" || user?.role === "finance_leader";
+  const canAccessAttendance =
+    user?.role === "admin" ||
+    user?.role === "usher" ||
+    user?.role === "cell_leader";
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
@@ -45,11 +126,15 @@ function DashboardContent() {
               </div>
               <div>
                 <h1 className="text-xl font-bold">Ministry Dashboard</h1>
-                <p className="text-sm text-muted-foreground">Welcome back, {getRoleDisplay(user?.role || "")}</p>
+                <p className="text-sm text-muted-foreground">
+                  Welcome back, {getRoleDisplay(user?.role || "")}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Badge variant="secondary">{getRoleDisplay(user?.role || "")}</Badge>
+              <Badge variant="secondary">
+                {getRoleDisplay(user?.role || "")}
+              </Badge>
               <Button variant="outline" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
@@ -64,33 +149,41 @@ function DashboardContent() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Members
+              </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">127</div>
-              <p className="text-xs text-muted-foreground">+12 from last month</p>
+              <div className="text-2xl font-bold">{stats.totalMembers}</div>
+              <p className="text-xs text-muted-foreground">Active members</p>
             </CardContent>
           </Card>
 
           <Card className="border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">This Week's Attendance</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                This Week's Attendance
+              </CardTitle>
               <Church className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">89</div>
-              <p className="text-xs text-muted-foreground">70% attendance rate</p>
+              <div className="text-2xl font-bold">{stats.weeklyAttendance}</div>
+              <p className="text-xs text-muted-foreground">Present this week</p>
             </CardContent>
           </Card>
 
           <Card className="border-0 shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">First-Timers</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                First-Timers
+              </CardTitle>
               <UserPlus className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8</div>
+              <div className="text-2xl font-bold">
+                {stats.monthlyFirstTimers}
+              </div>
               <p className="text-xs text-muted-foreground">This month</p>
             </CardContent>
           </Card>
@@ -98,11 +191,15 @@ function DashboardContent() {
           {canAccessFinance && (
             <Card className="border-0 shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Offerings</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Total Offerings
+                </CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₵6,050</div>
+                <div className="text-2xl font-bold">
+                  ₵{stats.monthlyOfferings.toLocaleString()}
+                </div>
                 <p className="text-xs text-muted-foreground">This month</p>
               </CardContent>
             </Card>
@@ -119,21 +216,33 @@ function DashboardContent() {
                     <Users className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Attendance & Members</CardTitle>
-                    <CardDescription>Manage attendance, members, and first-timers</CardDescription>
+                    <CardTitle className="text-xl">
+                      Attendance & Members
+                    </CardTitle>
+                    <CardDescription>
+                      Manage attendance, members, and first-timers
+                    </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <Button variant="outline" className="justify-start bg-transparent" asChild>
+                  <Button
+                    variant="outline"
+                    className="justify-start bg-transparent"
+                    asChild
+                  >
                     <Link href="/attendance">
                       <Calendar className="w-4 h-4 mr-2" />
                       Record Attendance
                     </Link>
                   </Button>
                   {user?.role === "admin" && (
-                    <Button variant="outline" className="justify-start bg-transparent" asChild>
+                    <Button
+                      variant="outline"
+                      className="justify-start bg-transparent"
+                      asChild
+                    >
                       <Link href="/members">
                         <Users className="w-4 h-4 mr-2" />
                         Manage Members
@@ -153,14 +262,22 @@ function DashboardContent() {
                     <DollarSign className="w-6 h-6 text-secondary" />
                   </div>
                   <div>
-                    <CardTitle className="text-xl">Finance Management</CardTitle>
-                    <CardDescription>Track partnerships, offerings, and financial reports</CardDescription>
+                    <CardTitle className="text-xl">
+                      Finance Management
+                    </CardTitle>
+                    <CardDescription>
+                      Track partnerships, offerings, and financial reports
+                    </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <Button variant="outline" className="justify-start bg-transparent" asChild>
+                  <Button
+                    variant="outline"
+                    className="justify-start bg-transparent"
+                    asChild
+                  >
                     <Link href="/finance">
                       <DollarSign className="w-4 h-4 mr-2" />
                       Finance
@@ -177,38 +294,43 @@ function DashboardContent() {
           <Card className="md:col-span-2 border-0 shadow-lg">
             <CardHeader>
               <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest updates from your ministry</CardDescription>
+              <CardDescription>
+                Latest updates from your ministry
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className="w-2 h-2 rounded-full bg-primary"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">New service created</p>
-                    <p className="text-xs text-muted-foreground">
-                      Supergathering - "Faith Over Fear" scheduled for today
-                    </p>
+                {stats.activities.map((activity: any, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        activity.type === "service"
+                          ? "bg-primary"
+                          : activity.type === "offering"
+                          ? "bg-secondary"
+                          : "bg-chart-3"
+                      }`}
+                    ></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        {activity.type === "service"
+                          ? "New service created"
+                          : activity.type === "offering"
+                          ? "Offering recorded"
+                          : "Attendance submitted"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.description}
+                      </p>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(activity.date).toLocaleDateString()}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground">2 hours ago</span>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className="w-2 h-2 rounded-full bg-secondary"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Partnership recorded</p>
-                    <p className="text-xs text-muted-foreground">Min. Victus Kwaku - ₵500.00</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">5 hours ago</span>
-                </div>
-
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                  <div className="w-2 h-2 rounded-full bg-chart-3"></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Attendance submitted</p>
-                    <p className="text-xs text-muted-foreground">89 members present at Midweek service</p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">1 day ago</span>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -227,7 +349,9 @@ function DashboardContent() {
                   <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
                   <div>
                     <p>KNUST CAMPUS</p>
-                    <p className="text-xs text-muted-foreground">REHABILITATION CENTER (CEDRES)</p>
+                    <p className="text-xs text-muted-foreground">
+                      REHABILITATION CENTER (CEDRES)
+                    </p>
                   </div>
                 </div>
               </div>
@@ -235,18 +359,14 @@ function DashboardContent() {
               <div className="pt-4 border-t">
                 <h4 className="font-medium mb-2">Active Cells</h4>
                 <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span>Zoe Cell</span>
-                    <span className="text-muted-foreground">21 members</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Shiloh Cell</span>
-                    <span className="text-muted-foreground">18 members</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Makarios Cell</span>
-                    <span className="text-muted-foreground">22 members</span>
-                  </div>
+                  {cellStats.map((cell: any, index) => (
+                    <div key={index} className="flex justify-between">
+                      <span>{cell.name}</span>
+                      <span className="text-muted-foreground">
+                        {cell.member_count} members
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </CardContent>
@@ -254,7 +374,7 @@ function DashboardContent() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 export default function DashboardPage() {
@@ -262,5 +382,5 @@ export default function DashboardPage() {
     <ProtectedRoute>
       <DashboardContent />
     </ProtectedRoute>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken"
+const jwt = require("jsonwebtoken")
 import bcrypt from "bcryptjs"
 import type { NextRequest } from "next/server"
 import pool from "./db"
