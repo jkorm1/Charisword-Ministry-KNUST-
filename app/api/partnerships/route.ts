@@ -2,6 +2,22 @@ import { type NextRequest, NextResponse } from "next/server"
 import pool from "@/lib/db"
 import { getUserFromRequest, requireRole } from "@/lib/auth"
 
+interface PartnershipDetail {
+  amount: string;
+  date: string;
+  partner_name: string;
+}
+
+interface ProcessedRow {
+  member_id: number;
+  full_name: string;
+  cell_name: string;
+  total_partnerships: number;
+  partnership_details: PartnershipDetail[];
+  last_contribution_date: string;
+}
+
+// GET method for fetching partnership reports
 export async function GET(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
@@ -68,16 +84,57 @@ export async function GET(request: NextRequest) {
     const [rows] = await pool.execute(query, params)
     
     // Process partnership details for each member
-    const processedRows = rows.map((row: any) => ({
-      ...row,
-      partnership_details: row.partnership_details 
-        ? row.partnership_details.split('|').map(detail => JSON.parse(detail))
-        : []
-    }))
+const processedRows = rows.map((row: any): ProcessedRow => ({
+  member_id: Number(row.member_id) || 0,
+  full_name: row.full_name || '',
+  cell_name: row.cell_name || '',
+  total_partnerships: Number(row.total_partnerships) || 0,
+  partnership_details: row.partnership_details 
+    ? row.partnership_details.split('|').map((detail: string) => JSON.parse(detail))
+    : [],
+  last_contribution_date: row.last_contribution_date || ''
+}))
 
     return NextResponse.json(processedRows)
   } catch (error) {
     console.error("Get partnership reports error:", error)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+}
+
+// POST method for creating new partnerships
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getUserFromRequest(request)
+    requireRole(["admin", "finance_leader"])(user)
+
+    const { member_id, partner_name, amount, date_given } = await request.json()
+
+    // Validate required fields
+    if (!partner_name || !amount || !date_given) {
+      return NextResponse.json(
+        { error: "Partner name, amount, and date are required" },
+        { status: 400 }
+      )
+    }
+
+    // Insert the partnership record
+    const [result] = await pool.execute(
+      `INSERT INTO partnerships (member_id, partner_name, amount, date_given,  recorded_by_user_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [member_id || null, partner_name, amount, date_given, user?.user_id]
+    )
+
+    return NextResponse.json({ 
+      success: true, 
+      id: (result as any).insertId,
+      message: "Partnership recorded successfully"
+    })
+  } catch (error) {
+    console.error("Error creating partnership:", error)
+    return NextResponse.json(
+      { error: "Failed to create partnership" },
+      { status: 500 }
+    )
   }
 }

@@ -56,7 +56,8 @@ export function FinanceReports() {
   );
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  // Fix: Use an object to track expanded states instead of a Set
+  const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
   const [activeTab, setActiveTab] = useState<"partnerships" | "offerings">(
     "partnerships"
   );
@@ -168,14 +169,19 @@ export function FinanceReports() {
     }
   };
 
+  // Fix: Updated toggleRow function to work with an object instead of a Set
   const toggleRow = (memberId: number) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(memberId)) {
-      newExpanded.delete(memberId);
-    } else {
-      newExpanded.add(memberId);
-    }
-    setExpandedRows(newExpanded);
+    console.log("Toggling row for member ID:", memberId);
+    console.log("Current expandedRows:", expandedRows);
+
+    setExpandedRows((prev) => {
+      // Create a copy of the previous state
+      const newState = { ...prev };
+      // Toggle the specific row
+      newState[memberId] = !prev[memberId];
+      console.log("New expandedRows state:", newState);
+      return newState;
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -266,6 +272,17 @@ export function FinanceReports() {
               </p>
             </div>
           )}
+          {activeTab === "offerings" && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <p className="text-lg font-semibold">
+                Total Offerings: GHS{" "}
+                {offeringReports
+                  .reduce((sum, report) => sum + Number(report.amount || 0), 0)
+                  .toFixed(2)
+                  .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+              </p>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {loading && <p className="text-center py-4">Loading reports...</p>}
@@ -305,11 +322,12 @@ export function FinanceReports() {
                           variant="ghost"
                           onClick={() => toggleRow(report.member_id)}
                         >
-                          {expandedRows.has(report.member_id) ? "▲" : "▼"}
+                          {expandedRows[report.member_id] ? "▲" : "▼"}
                         </Button>
                       </TableCell>
                     </TableRow>
-                    {expandedRows.has(report.member_id) && (
+                    {/* Fix: Updated condition to check the object property */}
+                    {expandedRows[report.member_id] && (
                       <TableRow>
                         <TableCell colSpan={7}>
                           <div className="p-4 bg-gray-50">

@@ -1,6 +1,24 @@
+// app/api/reports/partnerships/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import pool from "@/lib/db"
 import { getUserFromRequest, requireRole } from "@/lib/auth"
+
+interface PartnershipDetail {
+  amount: number;
+  date: string;
+  partner_name: string;
+}
+
+interface PartnershipReport {
+  id: string;
+  full_name: string;
+  cell_name: string;
+  total_partnerships: number;
+  number_of_contributions: number;
+  last_contribution_date: string | null;
+  status: string;
+  partnership_details: PartnershipDetail[];
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,72 +30,139 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get("to")
     const cellId = searchParams.get("cellId")
 
-    let query = `
+    // Get all members with their partnership details
+    let membersQuery = `
       SELECT 
         m.member_id,
         m.full_name,
         c.name as cell_name,
-        COALESCE(p.total_amount, 0) as total_partnerships,
-        p.partnership_details,
-        p.last_contribution_date
+        m.membership_status,
+        COALESCE(SUM(p.amount), 0) as total_partnerships,
+        COUNT(p.partnership_id) as number_of_contributions,
+        MAX(p.date_given) as last_contribution_date,
+        GROUP_CONCAT(
+          JSON_OBJECT(
+            'amount', p.amount,
+            'date', p.date_given,
+            'partner_name', p.partner_name
+          )
+        ) as partnership_details
       FROM members m
       LEFT JOIN cells c ON m.cell_id = c.cell_id
-      LEFT JOIN (
-        SELECT 
-          member_id,
-          SUM(amount) as total_amount,
-          GROUP_CONCAT(
-            CONCAT(
-              '{',
-              '"amount":"', amount,
-              '","date":"', date_given,
-              '","partner_name":"', IFNULL(partner_name, ''),
-              '"}'
-            ) SEPARATOR '|'
-          ) as partnership_details,
-          MAX(date_given) as last_contribution_date
-        FROM partnerships 
-        WHERE 1=1
+      LEFT JOIN partnerships p ON m.member_id = p.member_id
+      WHERE m.membership_status IN ('Member', 'Associate')
     `
 
     const params: any[] = []
 
     if (from) {
-      query += " AND date_given >= ?"
+      membersQuery += " AND (p.date_given >= ? OR p.date_given IS NULL)"
       params.push(from)
     }
 
     if (to) {
-      query += " AND date_given <= ?"
+      membersQuery += " AND (p.date_given <= ? OR p.date_given IS NULL)"
       params.push(to)
     }
 
-    query += `
-        GROUP BY member_id
-      ) p ON m.member_id = p.member_id
-      WHERE m.membership_status IN ('Member', 'Associate')
-    `
-
     if (cellId) {
-      query += " AND m.cell_id = ?"
+      membersQuery += " AND m.cell_id = ?"
       params.push(cellId)
     }
 
-    query += " ORDER BY total_partnerships DESC, m.full_name ASC"
+    membersQuery += `
+      GROUP BY m.member_id, m.full_name, c.name, m.membership_status
+      ORDER BY total_partnerships DESC, m.full_name ASC
+    `
 
-    const [rows] = await pool.execute(query, params)
+    const [members] = await pool.execute(membersQuery, params)
     
-    // Process partnership details for each member
-    const processedRows = rows.map((row: any) => ({
-      ...row,
-      partnership_details: row.partnership_details 
-        ? row.partnership_details.split('|').map(detail => JSON.parse(detail))
-        : []
-    }))
+    // Process member results
+    const processedMembers: PartnershipReport[] = members.map((row: any) => {
+      const totalPartnerships = Number(row.total_partnerships) || 0;
+      const contributionCount = Number(row.number_of_contributions) || 0;
+      
+      return {
+        id: row.member_id.toString(),
+        full_name: row.full_name,
+        cell_name: row.cell_name || '',
+        total_partnerships: totalPartnerships,
+        number_of_contributions: contributionCount,
+        last_contribution_date: contributionCount > 0 ? row.last_contribution_date : null,
+        status: row.membership_status || 'Member',
+        partnership_details: contributionCount > 0 && row.partnership_details 
+          ? JSON.parse(`[${row.partnership_details}]`)
+          : []
+      };
+    });
 
-    return NextResponse.json(processedRows)
+    // Get non-members with partnerships
+    let nonMembersQuery = `
+      SELECT 
+        partner_name as full_name,
+        SUM(amount) as total_partnerships,
+        COUNT(partnership_id) as number_of_contributions,
+        MAX(date_given) as last_contribution_date,
+        GROUP_CONCAT(
+          JSON_OBJECT(
+            'amount', amount,
+            'date', date_given,
+            'partner_name', partner_name
+          )
+        ) as partnership_details
+      FROM partnerships 
+      WHERE member_id IS NULL
+    `
+
+    const nonMembersParams: any[] = []
+
+    if (from) {
+      nonMembersQuery += " AND date_given >= ?"
+      nonMembersParams.push(from)
+    }
+
+    if (to) {
+      nonMembersQuery += " AND date_given <= ?"
+      nonMembersParams.push(to)
+    }
+
+    nonMembersQuery += `
+      GROUP BY partner_name
+      ORDER BY total_partnerships DESC
+    `
+
+    const [nonMembers] = await pool.execute(nonMembersQuery, nonMembersParams)
+    
+    // Process non-member results
+    const processedNonMembers: PartnershipReport[] = nonMembers.map((row: any) => {
+      const totalPartnerships = Number(row.total_partnerships) || 0;
+      const contributionCount = Number(row.number_of_contributions) || 0;
+      
+      return {
+        id: `non-member_${row.full_name}`,
+        full_name: row.full_name,
+        cell_name: '',
+        total_partnerships: totalPartnerships,
+        number_of_contributions: contributionCount,
+        last_contribution_date: contributionCount > 0 ? row.last_contribution_date : null,
+        status: 'Non-member',
+        partnership_details: contributionCount > 0 && row.partnership_details 
+          ? JSON.parse(`[${row.partnership_details}]`)
+          : []
+      };
+    });
+
+    // Combine members and non-members
+    const results = [...processedMembers, ...processedNonMembers]
+    
+    // Sort by total_partnerships descending
+    results.sort((a: PartnershipReport, b: PartnershipReport) => {
+      return b.total_partnerships - a.total_partnerships
+    })
+
+    return NextResponse.json(results)
   } catch (error) {
     console.error("Get partnership reports error:", error)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 })
   }
 }

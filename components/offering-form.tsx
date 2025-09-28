@@ -76,6 +76,24 @@ export function OfferingForm() {
     }
   };
 
+  const handleServiceChange = async (serviceId: string) => {
+    setError(null);
+    setFormData({ ...formData, service_id: serviceId });
+
+    if (serviceId && formData.date_recorded) {
+      await checkExistingOffering(serviceId, formData.date_recorded);
+    }
+  };
+
+  const handleDateChange = async (date: string) => {
+    setError(null);
+    setFormData({ ...formData, date_recorded: date });
+
+    if (formData.service_id && date) {
+      await checkExistingOffering(formData.service_id, date);
+    }
+  };
+
   const checkExistingOffering = async (serviceId: string, date: string) => {
     try {
       const response = await fetch(
@@ -85,6 +103,10 @@ export function OfferingForm() {
         const data = await response.json();
         if (data.exists) {
           setExistingOffering(data.offering);
+          setFormData((prev) => ({
+            ...prev,
+            amount: data.offering.amount.toString(),
+          }));
           setError(
             `An offering for this service already exists on ${date}. Please update the existing record.`
           );
@@ -119,7 +141,6 @@ export function OfferingForm() {
     if (existingOffering) {
       handleUpdate(e);
     } else {
-      // Existing code for creating a new offering
       e.preventDefault();
       setError(null);
 
@@ -187,7 +208,6 @@ export function OfferingForm() {
         },
         body: JSON.stringify({
           offering_id: existingOffering.offering_id,
-          service_id: Number.parseInt(formData.service_id),
           amount: Number.parseFloat(formData.amount),
           date_recorded: formData.date_recorded,
         }),
@@ -239,10 +259,7 @@ export function OfferingForm() {
             <select
               id="service"
               value={formData.service_id}
-              onChange={(e) => {
-                setError(null);
-                setFormData({ ...formData, service_id: e.target.value });
-              }}
+              onChange={(e) => handleServiceChange(e.target.value)}
               className="w-full p-2 border rounded-md"
               required
             >
@@ -278,10 +295,7 @@ export function OfferingForm() {
               id="date_recorded"
               type="date"
               value={formData.date_recorded}
-              onChange={(e) => {
-                setError(null);
-                setFormData({ ...formData, date_recorded: e.target.value });
-              }}
+              onChange={(e) => handleDateChange(e.target.value)}
               required
             />
           </div>
