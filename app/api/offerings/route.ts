@@ -35,6 +35,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Service, amount, and date required" }, { status: 400 })
     }
 
+     // Check for existing offering
+    const [existingOfferings] = await pool.execute(
+      `SELECT * FROM offerings 
+       WHERE service_id = ? AND DATE(date_recorded) = ?`,
+      [service_id, date_recorded]
+    )
+
+    if ((existingOfferings as any[]).length > 0) {
+      return NextResponse.json({ 
+        error: "An offering for this service and date already exists" 
+      }, { status: 400 })
+    }
+
+
     const [result] = await pool.execute(
       `INSERT INTO offerings 
        (service_id, amount, date_recorded, recorded_by_user_id, created_at)

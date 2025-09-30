@@ -171,17 +171,10 @@ export function FinanceReports() {
 
   // Fix: Updated toggleRow function to work with an object instead of a Set
   const toggleRow = (memberId: number) => {
-    console.log("Toggling row for member ID:", memberId);
-    console.log("Current expandedRows:", expandedRows);
-
-    setExpandedRows((prev) => {
-      // Create a copy of the previous state
-      const newState = { ...prev };
-      // Toggle the specific row
-      newState[memberId] = !prev[memberId];
-      console.log("New expandedRows state:", newState);
-      return newState;
-    });
+    setExpandedRows((prev) => ({
+      ...prev,
+      [memberId]: !prev[memberId],
+    }));
   };
 
   const formatDate = (dateString: string) => {
