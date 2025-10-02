@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const cellId = searchParams.get("cellId")
     const search = searchParams.get("search")
+    const status = searchParams.get("status")
 
     let query = `
       SELECT m.member_id, m.full_name, m.gender, m.residence, m.phone, m.email,
@@ -37,6 +38,11 @@ export async function GET(request: NextRequest) {
     if (search) {
       conditions.push("m.full_name LIKE ?")
       params.push(`%${search}%`)
+    }
+
+    if (status && status !== "all") {
+      conditions.push("m.membership_status = ?");
+      params.push(status);
     }
 
     if (conditions.length > 0) {

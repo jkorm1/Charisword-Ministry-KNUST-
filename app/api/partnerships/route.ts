@@ -1,3 +1,4 @@
+// app/api/partnerships/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import pool from "@/lib/db"
 import { getUserFromRequest, requireRole } from "@/lib/auth"
@@ -84,16 +85,16 @@ export async function GET(request: NextRequest) {
     const [rows] = await pool.execute(query, params)
     
     // Process partnership details for each member
-const processedRows = rows.map((row: any): ProcessedRow => ({
-  member_id: Number(row.member_id) || 0,
-  full_name: row.full_name || '',
-  cell_name: row.cell_name || '',
-  total_partnerships: Number(row.total_partnerships) || 0,
-  partnership_details: row.partnership_details 
-    ? row.partnership_details.split('|').map((detail: string) => JSON.parse(detail))
-    : [],
-  last_contribution_date: row.last_contribution_date || ''
-}))
+    const processedRows = rows.map((row: any): ProcessedRow => ({
+      member_id: Number(row.member_id) || 0,
+      full_name: row.full_name || '',
+      cell_name: row.cell_name || '',
+      total_partnerships: Number(row.total_partnerships) || 0,
+      partnership_details: row.partnership_details 
+        ? row.partnership_details.split('|').map((detail: string) => JSON.parse(detail))
+        : [],
+      last_contribution_date: row.last_contribution_date || ''
+    }))
 
     return NextResponse.json(processedRows)
   } catch (error) {
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
 
     // Insert the partnership record
     const [result] = await pool.execute(
-      `INSERT INTO partnerships (member_id, partner_name, amount, date_given,  recorded_by_user_id)
+      `INSERT INTO partnerships (member_id, partner_name, amount, date_given, recorded_by_user_id)
        VALUES (?, ?, ?, ?, ?)`,
       [member_id || null, partner_name, amount, date_given, user?.user_id]
     )

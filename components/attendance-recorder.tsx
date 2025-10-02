@@ -70,7 +70,20 @@ export function AttendanceRecorder() {
     try {
       const response = await fetch("/api/services");
       const data = await response.json();
-      setServices(data);
+
+      const formattedServices = data.map((service) => ({
+        ...service,
+        formatted_date: new Date(service.service_date).toLocaleDateString(
+          "en-US",
+          {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          }
+        ),
+      }));
+
+      setServices(formattedServices);
     } catch (error) {
       console.error("Error fetching services:", error);
     }
@@ -161,7 +174,7 @@ export function AttendanceRecorder() {
               <option value="">Choose a service...</option>
               {services.map((service) => (
                 <option key={service.service_id} value={service.service_id}>
-                  {service.service_date} - {service.service_type} (
+                  {service.formatted_date} - {service.service_type} (
                   {service.topic})
                 </option>
               ))}

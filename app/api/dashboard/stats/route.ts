@@ -39,6 +39,17 @@ export async function GET(request: NextRequest) {
       offerings = offeringsResult
     }
 
+    // Add this after the offerings query
+    let partnerships = []
+    if (user.role === 'admin' || user.role === 'finance_leader') {
+      const [partnershipsResult] = await pool.execute(`
+        SELECT COALESCE(SUM(amount), 0) as total 
+        FROM partnerships 
+        WHERE MONTH(date_given) = MONTH(CURRENT_DATE)
+      `)
+      partnerships = partnershipsResult
+    }
+
      // Get recent activities
     const [services] = await pool.execute(`
     SELECT 'service' as type, s.service_id as id, s.service_date as date, 
@@ -83,6 +94,7 @@ export async function GET(request: NextRequest) {
         weeklyAttendance: attendance[0].total,
         monthlyFirstTimers: firstTimers[0].total,
         monthlyOfferings: offerings[0]?.total || 0,
+        monthlyPartnerships: partnerships[0]?.total || 0,
         lastUpdated: new Date().toISOString(),
         activities: allActivities
       }
