@@ -18,6 +18,9 @@ interface MemberFiltersProps {
   onStatusChange: (value: string) => void;
   sortBy: string;
   onSortChange: (value: string) => void;
+  selectedCell: string; // Add this
+  onCellChange: (value: string) => void; // Add this
+  cells: Cell[]; // Add this
 }
 
 export function MemberFilters({
@@ -27,6 +30,9 @@ export function MemberFilters({
   onStatusChange,
   sortBy,
   onSortChange,
+  selectedCell, // Add this
+  onCellChange, // Add this
+  cells, // Add this
 }: MemberFiltersProps) {
   return (
     <Card className="mb-6">
@@ -54,6 +60,32 @@ export function MemberFilters({
               </SelectContent>
             </Select>
           </div>
+
+          <div className="w-48">
+            <label className="text-sm font-medium">Cell</label>
+            <Select
+              value={selectedCell || "all"}
+              onValueChange={(value) =>
+                onCellChange(value === "all" ? "" : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by cell" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Cells</SelectItem>
+                {cells.map((cell) => (
+                  <SelectItem
+                    key={cell.cell_id}
+                    value={cell.cell_id.toString()}
+                  >
+                    {cell.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="w-48">
             <label className="text-sm font-medium">Sort By</label>
             <Select value={sortBy} onValueChange={onSortChange}>

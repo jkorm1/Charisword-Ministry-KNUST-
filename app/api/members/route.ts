@@ -78,7 +78,17 @@ export async function POST(request: NextRequest) {
         cell_id, fold_id, inviter_member_id, membership_status, date_joined
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `,
-      [full_name, gender, residence, phone, email, cell_id, fold_id, inviter_member_id, membership_status || "Member"],
+       [
+        full_name, 
+        gender, 
+        residence || null,  // Convert empty string to null
+        phone || null,      // Convert empty string to null
+        email || null,      // Convert empty string to null
+        cell_id || null,    // Already handled in frontend but double-check here
+        fold_id || null,    // Already handled in frontend but double-check here
+        inviter_member_id || null,  // Convert undefined to null
+        membership_status || "Member"
+      ],
     )
 
     return NextResponse.json({

@@ -11,7 +11,7 @@ import { MemberStats } from "@/components/members/member-stats";
 import { MemberFilters } from "@/components/members/member-filters";
 
 interface Member {
-  id: number;
+  member_id: number;
   full_name: string;
   gender: string;
   residence?: string;
@@ -21,7 +21,7 @@ interface Member {
   fold_name?: string;
   inviter_name?: string;
   membership_status: string;
-  join_date: string;
+  date_joined: string;
 }
 
 interface Cell {
@@ -116,11 +116,11 @@ function MembersContent() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (memberId: number) => {
     if (!confirm("Are you sure you want to delete this member?")) return;
 
     try {
-      const response = await fetch(`/api/members/${id}`, {
+      const response = await fetch(`/api/members/${memberId}`, {
         method: "DELETE",
       });
 
@@ -144,7 +144,8 @@ function MembersContent() {
           return a.full_name.localeCompare(b.full_name);
         case "join_date":
           return (
-            new Date(b.join_date).getTime() - new Date(a.join_date).getTime()
+            new Date(b.date_joined).getTime() -
+            new Date(a.date_joined).getTime()
           );
         case "cell":
           return (a.cell_name || "").localeCompare(b.cell_name || "");
@@ -180,7 +181,7 @@ function MembersContent() {
       </div>
 
       {/* Statistics Dashboard */}
-      <MemberStats members={members} />
+      <MemberStats members={filteredMembers} />
 
       {/* Search and Filter Section */}
       <MemberFilters
@@ -190,6 +191,9 @@ function MembersContent() {
         onStatusChange={setFilterStatus}
         sortBy={sortBy}
         onSortChange={setSortBy}
+        selectedCell={selectedCell} // Add this
+        onCellChange={setSelectedCell} // Add this
+        cells={cells} // Add this
       />
 
       {/* Members Table */}

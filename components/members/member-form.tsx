@@ -1,6 +1,8 @@
 // components/members/member-form.tsx
 "use client";
 
+import type React from "react";
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +25,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 
 interface Member {
-  id: number;
+  member_id: number;
   full_name: string;
   gender: string;
   residence?: string;
@@ -32,7 +34,7 @@ interface Member {
   cell_name?: string;
   fold_name?: string;
   membership_status: string;
-  join_date: string;
+  date_joined: string;
 }
 
 interface Cell {
@@ -76,18 +78,33 @@ export function MemberForm({
   });
   const { toast } = useToast();
 
+  const [availableFolds, setAvailableFolds] = useState<Fold[]>([]);
+
   useEffect(() => {
     if (editingMember) {
+      const cellId =
+        cells
+          .find((c) => c.name === editingMember.cell_name)
+          ?.cell_id.toString() || "";
+      const foldId =
+        folds
+          .find((f) => f.name === editingMember.fold_name)
+          ?.fold_id.toString() || "";
+
       setFormData({
         full_name: editingMember.full_name,
         gender: editingMember.gender,
         residence: editingMember.residence || "",
         phone: editingMember.phone || "",
         email: editingMember.email || "",
-        cell_id: editingMember.cell_name || "",
-        fold_id: editingMember.fold_name || "",
+        cell_id: cellId,
+        fold_id: foldId,
         membership_status: editingMember.membership_status,
       });
+
+      if (cellId) {
+        fetchFoldsForCell(cellId);
+      }
     } else {
       setFormData({
         full_name: "",
@@ -100,26 +117,76 @@ export function MemberForm({
         membership_status: "Member",
       });
     }
-  }, [editingMember]);
+  }, [editingMember, cells, folds]);
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData({ ...formData, [field]: value });
+  const fetchFoldsForCell = async (cellId: string) => {
+    try {
+      const response = await fetch(`/api/folds?cellId=${cellId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableFolds(data); // Store the fetched folds
+      }
+    } catch (error) {
+      console.error("Error fetching folds:", error);
+    }
   };
 
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+    if (field === "cell_id") {
+      if (value) {
+        fetchFoldsForCell(value);
+      } else {
+        setAvailableFolds([]); // Clear folds if no cell selected
+      }
+      // Reset fold selection when cell changes
+      setFormData((prev) => ({ ...prev, fold_id: "" }));
+    }
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
+    // Add validation
+    if (!formData.full_name.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Full name is required",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.gender) {
+      toast({
+        title: "Validation Error",
+        description: "Gender is required",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Convert string IDs to numbers for the API
+      // Convert string IDs to numbers for the API, ensuring proper handling of empty strings
       const apiFormData = {
         ...formData,
-        cell_id: formData.cell_id ? parseInt(formData.cell_id) : null,
-        fold_id: formData.fold_id ? parseInt(formData.fold_id) : null,
+        cell_id:
+          formData.cell_id && formData.cell_id.trim() !== ""
+            ? Number.parseInt(formData.cell_id)
+            : null,
+        fold_id:
+          formData.fold_id && formData.fold_id.trim() !== ""
+            ? Number.parseInt(formData.fold_id)
+            : null,
       };
 
+      console.log("Submitting data:", apiFormData);
+
       const url = editingMember
-        ? `/api/members/${editingMember.id}`
+        ? `/api/members/${editingMember.member_id}`
         : "/api/members";
       const method = editingMember ? "PUT" : "POST";
 
@@ -129,13 +196,50 @@ export function MemberForm({
         body: JSON.stringify(apiFormData),
       });
 
+      console.log("Response status:", response.status);
+
       if (response.ok) {
+        // Enhanced success feedback
+        const memberName = formData.full_name;
+        const action = editingMember ? "updated" : "created";
+        const cellName = formData.cell_id
+          ? cells.find((c) => c.cell_id.toString() === formData.cell_id)?.name
+          : "no cell";
+        const foldName = formData.fold_id
+          ? availableFolds.find(
+              (f) => f.fold_id.toString() === formData.fold_id
+            )?.name
+          : null;
+
+        // Create a more detailed success message
+        let successMessage = `${memberName} has been successfully ${action}.`;
+        if (cellName !== "no cell") {
+          successMessage += ` They have been added to ${cellName}`;
+          if (foldName) {
+            successMessage += ` (${foldName} fold)`;
+          }
+          successMessage += ".";
+        }
+
+        // Show the toast notification
         toast({
-          title: "Success",
-          description: editingMember
-            ? "Member updated successfully"
-            : "Member created successfully",
+          title: `Member ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+          description: successMessage,
+          variant: "default", // Use default style for success
         });
+
+        // Reset form and close dialog
+        setFormData({
+          full_name: "",
+          gender: "",
+          residence: "",
+          phone: "",
+          email: "",
+          cell_id: "",
+          fold_id: "",
+          membership_status: "Member",
+        });
+        setAvailableFolds([]);
         onSave();
         onClose();
       } else {
@@ -148,9 +252,11 @@ export function MemberForm({
       }
     } catch (error) {
       console.error("Error saving member:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "An unexpected error occurred";
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -273,20 +379,14 @@ export function MemberForm({
                     <SelectValue placeholder="Select fold" />
                   </SelectTrigger>
                   <SelectContent>
-                    {folds
-                      .filter(
-                        (fold) =>
-                          !formData.cell_id ||
-                          fold.cell_id === parseInt(formData.cell_id)
-                      )
-                      .map((fold) => (
-                        <SelectItem
-                          key={fold.fold_id}
-                          value={fold.fold_id.toString()}
-                        >
-                          {fold.name}
-                        </SelectItem>
-                      ))}
+                    {availableFolds.map((fold) => (
+                      <SelectItem
+                        key={fold.fold_id}
+                        value={fold.fold_id.toString()}
+                      >
+                        {fold.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -4,20 +4,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Calendar, TrendingUp } from "lucide-react";
 
-interface Member {
-  id: number;
-  membership_status: string;
-  join_date: string;
-  cell_name?: string;
-}
-
 interface MemberStatsProps {
   members: Member[];
 }
 
 export function MemberStats({ members }: MemberStatsProps) {
-  const activeMembers = members.filter(
+  const totalMembers = members.length;
+  const fullMembers = members.filter(
     (m) => m.membership_status === "Member"
+  ).length;
+  const associates = members.filter(
+    (m) => m.membership_status === "Associate"
+  ).length;
+  const firstTimers = members.filter(
+    (m) => m.membership_status === "FirstTimer"
   ).length;
 
   const thisMonthMembers = members.filter((m) => {
@@ -35,11 +35,41 @@ export function MemberStats({ members }: MemberStatsProps) {
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+          <CardTitle className="text-sm font-medium">Total Souls</CardTitle>
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{activeMembers}</div>
+          <div className="text-2xl font-bold">{totalMembers}</div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Full Members</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{fullMembers}</div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Associates</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{associates}</div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">First Timers</CardTitle>
+          <Users className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{firstTimers}</div>
         </CardContent>
       </Card>
 

@@ -15,20 +15,20 @@ import {
 import { Edit, Trash2 } from "lucide-react";
 
 interface Member {
-  id: number;
+  member_id: number;
   full_name: string;
   gender: string;
   phone?: string;
   email?: string;
   cell_name?: string;
   membership_status: string;
-  join_date: string;
+  date_joined: string;
 }
 
 interface MemberTableProps {
   members: Member[];
   onEdit: (member: Member) => void;
-  onDelete: (id: number) => void;
+  onDelete: (member_id: number) => void;
 }
 
 export function MemberTable({ members, onEdit, onDelete }: MemberTableProps) {
@@ -47,7 +47,7 @@ export function MemberTable({ members, onEdit, onDelete }: MemberTableProps) {
         </TableHeader>
         <TableBody>
           {members.map((member) => (
-            <TableRow key={member.id}>
+            <TableRow key={member.member_id}>
               <TableCell>
                 <div className="flex items-center gap-3">
                   <Avatar>
@@ -89,7 +89,7 @@ export function MemberTable({ members, onEdit, onDelete }: MemberTableProps) {
                 </Badge>
               </TableCell>
               <TableCell>
-                {new Date(member.join_date).toLocaleDateString()}
+                {new Date(member.date_joined).toLocaleDateString()}
               </TableCell>
               <TableCell>
                 <div className="flex gap-2">
@@ -103,7 +103,12 @@ export function MemberTable({ members, onEdit, onDelete }: MemberTableProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => onDelete(member.id)}
+                    onClick={() => {
+                      console.log("[v0] Delete clicked for member:", member);
+                      console.log("[v0] member.member_id:", member.member_id);
+                      console.log("[v0] All member keys:", Object.keys(member));
+                      onDelete(member.member_id);
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
