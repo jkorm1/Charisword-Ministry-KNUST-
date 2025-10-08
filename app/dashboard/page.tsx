@@ -254,6 +254,40 @@ function DashboardContent() {
             </Card>
           )}
 
+          {user?.role === "admin" && (
+            <Card className="border-0 shadow-xl hover:shadow-2xl transition-shadow">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Calendar className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">
+                      Service Management
+                    </CardTitle>
+                    <CardDescription>
+                      Create and manage church services
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    className="justify-start bg-transparent"
+                    asChild
+                  >
+                    <Link href="/services">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Manage Services
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {canAccessFinance && (
             <Card className="border-0 shadow-xl hover:shadow-2xl transition-shadow">
               <CardHeader>

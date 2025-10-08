@@ -18,30 +18,62 @@ export async function POST(request: NextRequest) {
     try {
       await connection.beginTransaction()
 
-      // Delete existing attendance for this service
-      await connection.execute("DELETE FROM attendance WHERE service_id = ?", [service_id])
-
-      // Get all members
+      // Get all members with their current membership status
       const [allMembers] = await connection.execute(
-        'SELECT member_id FROM members WHERE membership_status IN ("Member", "Associate", "FirstTimer")',
+        'SELECT member_id, membership_status FROM members WHERE membership_status IN ("Member", "Associate", "FirstTimer")',
       )
 
-      const allMemberIds = (allMembers as any[]).map((m) => m.member_id)
+      const memberStatuses: Record<number, string> = {}
+      const allMemberIds = (allMembers as any[]).map((m) => {
+        memberStatuses[m.member_id] = m.membership_status
+        return m.member_id
+      })
 
-      // First, insert all attendance records
+      // Update existing attendance records or create new ones
       for (const memberId of allMemberIds) {
         const status = present_member_ids.includes(memberId) ? "Present" : "Absent"
         
-        await connection.execute(
-          `
-          INSERT INTO attendance (service_id, member_id, status, recorded_by_user_id, recorded_at)
-          VALUES (?, ?, ?, ?, NOW())
-        `,
-          [service_id, memberId, status, user?.user_id],
-        )
+     // Check if attendance record exists and get current status
+      const [existingRecords] = await connection.execute(
+        "SELECT attendance_id, status FROM attendance WHERE service_id = ? AND member_id = ?",
+        [service_id, memberId]
+      )
+
+      if ((existingRecords as any[]).length > 0) {
+        const existingRecord = (existingRecords as any[])[0]
+        const previousStatus = existingRecord.status
+        
+        // Only update if status has changed
+        if (previousStatus !== status) {
+          // Update existing record
+          await connection.execute(
+            "UPDATE attendance SET status = ?, recorded_by_user_id = ?, recorded_at = NOW() WHERE service_id = ? AND member_id = ?",
+            [status, user?.user_id, service_id, memberId]
+          )
+          
+          // Update existing history record instead of creating a new one
+          await connection.execute(
+            "UPDATE attendance_status_history SET attendance_status = ?, recorded_at = NOW() WHERE attendance_id = ? AND member_id = ? AND service_id = ?",
+            [status, existingRecord.attendance_id, memberId, service_id]
+          )
+        }
+        } else {
+          // Insert new record
+          const [result] = await connection.execute(
+            "INSERT INTO attendance (service_id, member_id, status, recorded_by_user_id, recorded_at) VALUES (?, ?, ?, ?, NOW())",
+            [service_id, memberId, status, user?.user_id]
+          )
+          
+          // Add to attendance history table with null previous status (since it's a new record)
+          await connection.execute(
+            "INSERT INTO attendance_status_history (attendance_id, member_id, service_id, attendance_status, member_status_at_time, previous_status) VALUES (?, ?, ?, ?, ?, ?)",
+            [(result as any).insertId, memberId, service_id, status, memberStatuses[memberId], null]
+          )
+        }
       }
 
       // Then, check and update FirstTimers to Associates
+    // Replace the FirstTimer promotion section with this:
       for (const memberId of present_member_ids) {
         const [memberInfo] = await connection.execute(
           "SELECT membership_status FROM members WHERE member_id = ?",
@@ -61,15 +93,28 @@ export async function POST(request: NextRequest) {
               "UPDATE members SET membership_status = 'Associate' WHERE member_id = ?",
               [memberId]
             )
+            
+            // Only update the current service's history record
+            await connection.execute(
+              "UPDATE attendance_status_history SET member_status_at_time = 'Associate' WHERE member_id = ? AND service_id = ?",
+              [memberId, service_id]
+            )
           }
         }
       }
 
+
       await connection.commit()
+
+      // Get the final counts for the response
+      const [attendanceCounts] = await connection.execute(
+        "SELECT COUNT(CASE WHEN status = 'Present' THEN 1 ELSE 0 END) as total_present FROM attendance WHERE service_id = ?",
+        [service_id]
+      )
 
       return NextResponse.json({
         message: "Attendance recorded successfully",
-        total_present: present_member_ids.length,
+        total_present: (attendanceCounts as any[])[0].total_present,
         total_members: allMemberIds.length,
       })
     } catch (error) {
@@ -84,8 +129,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-
-
 export async function GET(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
@@ -95,34 +138,28 @@ export async function GET(request: NextRequest) {
     const serviceId = searchParams.get("serviceId")
 
     if (!serviceId) {
-      return NextResponse.json({ error: "Service ID required" }, { status: 400 })
+      return NextResponse.json({ error: "Service ID is required" }, { status: 400 })
     }
 
-    let query = `
-      SELECT a.attendance_id, a.status, a.recorded_at,
-             m.member_id, m.full_name, m.gender, m.membership_status,
-             c.name as cell_name, f.name as fold_name
+    // Query to get attendance records for a specific service
+    const query = `
+      SELECT 
+        a.attendance_id,
+        a.member_id,
+        a.status,
+        a.recorded_at,
+        m.full_name,
+        m.membership_status
       FROM attendance a
       JOIN members m ON a.member_id = m.member_id
-      LEFT JOIN cells c ON m.cell_id = c.cell_id
-      LEFT JOIN folds f ON m.fold_id = f.fold_id
       WHERE a.service_id = ?
+      ORDER BY m.full_name
     `
 
-    const params = [serviceId]
-
-    // Cell leaders can only see their assigned cell
-    if (user?.role === "cell_leader" && user.assigned_cell_id) {
-      query += " AND m.cell_id = ?"
-      params.push(user.assigned_cell_id)
-    }
-
-    query += " ORDER BY m.full_name ASC"
-
-    const [rows] = await pool.execute(query, params)
+    const [rows] = await pool.execute(query, [serviceId])
     return NextResponse.json(rows)
   } catch (error) {
     console.error("Get attendance error:", error)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

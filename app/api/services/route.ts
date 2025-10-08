@@ -70,3 +70,43 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Failed to create service" }, { status: 500 })
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await getUserFromRequest(request)
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    requireRole(["admin", "usher"])(user)
+
+    const { service_id, service_date, service_type, topic } = await request.json()
+
+    if (!service_id || !service_date || !service_type) {
+      return NextResponse.json({ 
+        error: "Missing required fields",
+        details: {
+          service_id: !service_id ? "Service ID is required" : null,
+          service_date: !service_date ? "Service date is required" : null,
+          service_type: !service_type ? "Service type is required" : null
+        }
+      }, { status: 400 })
+    }
+
+    await pool.execute(
+      "UPDATE services SET service_date = ?, service_type = ?, topic = ? WHERE service_id = ?",
+      [service_date, service_type, topic, service_id]
+    )
+
+    return NextResponse.json({
+      message: "Service updated successfully",
+      service_id
+    })
+  } catch (error) {
+    console.error("Update service error:", error)
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 401 })
+    }
+    return NextResponse.json({ error: "Failed to update service" }, { status: 500 })
+  }
+}

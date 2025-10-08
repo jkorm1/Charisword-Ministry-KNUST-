@@ -34,17 +34,21 @@ interface AttendanceReport {
   service_date: string;
   service_type: string;
   topic: string;
+  expected_members: number;
+  present_members: number;
+  absent_members: number;
+  expected_associates: number;
+  present_associates: number;
+  absent_associates: number;
+  first_timers: number;
   total_present: number;
   total_absent: number;
-  first_timers: number;
-  associates: number;
-  members: number;
 }
 
 interface Service {
   service_id: number;
   service_type: string;
-  date: string;
+  service_date: string;
 }
 
 interface Cell {
@@ -87,7 +91,19 @@ export function AttendanceReports({
       const response = await fetch("/api/services");
       if (response.ok) {
         const data = await response.json();
-        setServices(data);
+        // Format the dates properly
+        const formattedServices = data.map((service) => ({
+          ...service,
+          formatted_date: new Date(service.service_date).toLocaleDateString(
+            "en-US",
+            {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            }
+          ),
+        }));
+        setServices(formattedServices);
       }
     } catch (error) {
       console.error("Error fetching services:", error);
@@ -206,7 +222,7 @@ export function AttendanceReports({
                       value={service.service_id.toString() || "all"}
                     >
                       {service.service_type} -{" "}
-                      {new Date(service.date).toLocaleDateString()}
+                      {new Date(service.formatted_date).toLocaleDateString()}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -288,44 +304,147 @@ export function AttendanceReports({
             <CardTitle>Attendance Records</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Service</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Topic</TableHead>
-                  <TableHead>Total Present</TableHead>
-                  <TableHead>Total Absent</TableHead>
-                  <TableHead>First Timers</TableHead>
-                  <TableHead>Associates</TableHead>
-                  <TableHead>Members</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reports.length > 0 ? (
-                  reports.map((report) => (
-                    <TableRow key={report.service_id}>
-                      <TableCell>{report.service_type}</TableCell>
-                      <TableCell>
-                        {new Date(report.service_date).toLocaleDateString()}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Service Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Service Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Topic
+                    </th>
+
+                    {/* Members Column */}
+                    <th
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      colSpan={3}
+                    >
+                      Members
+                    </th>
+
+                    {/* Associates Column */}
+                    <th
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      colSpan={3}
+                    >
+                      Associates
+                    </th>
+
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      First Timers
+                    </th>
+
+                    {/* Overall Column */}
+                    <th
+                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                      colSpan={2}
+                    >
+                      Overall
+                    </th>
+                  </tr>
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+
+                    {/* Members Subheaders */}
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Expected
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Present
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Absent
+                    </th>
+
+                    {/* Associates Subheaders */}
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Expected
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Present
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Absent
+                    </th>
+
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Count
+                    </th>
+
+                    {/* Overall Subheaders */}
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Present
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Absent
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {reports.length > 0 ? (
+                    reports.map((report) => (
+                      <tr key={report.service_id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(report.service_date).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {report.service_type}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {report.topic}
+                        </td>
+
+                        {/* Members Data */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
+                          {report.expected_members}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
+                          {report.present_members}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
+                          {report.absent_members}
+                        </td>
+
+                        {/* Associates Data */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
+                          {report.expected_associates}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
+                          {report.present_associates}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
+                          {report.absent_associates}
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-blue-600">
+                          {report.first_timers}
+                        </td>
+
+                        {/* Overall Data */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
+                          {report.total_present}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
+                          {report.total_absent}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={14} className="text-center py-8">
+                        No attendance records found matching your criteria.
                       </TableCell>
-                      <TableCell>{report.topic}</TableCell>
-                      <TableCell>{report.total_present}</TableCell>
-                      <TableCell>{report.total_absent}</TableCell>
-                      <TableCell>{report.first_timers}</TableCell>
-                      <TableCell>{report.associates}</TableCell>
-                      <TableCell>{report.members}</TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      No attendance records found matching your criteria.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       )}

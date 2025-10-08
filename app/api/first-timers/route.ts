@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from "next/server"
 import pool from "@/lib/db"
 import { getUserFromRequest, requireRole } from "@/lib/auth"
 
-// app/api/first-timers/route.ts
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
           [inviter_member_id]
         );
 
-const inviterCellId = (inviterInfo as any[])[0]?.cell_id;
+        const inviterCellId = (inviterInfo as any[])[0]?.cell_id;
 
         // Create temporary member record
         const [memberResult] = await connection.execute(
@@ -61,7 +60,7 @@ const inviterCellId = (inviterInfo as any[])[0]?.cell_id;
         const memberId = (memberResult as any).insertId
 
         // Create attendance record
-        await connection.execute(
+        const [attendanceResult] = await connection.execute(
           `
           INSERT INTO attendance (service_id, member_id, status, recorded_by_user_id, recorded_at)
           VALUES (?, ?, 'Present', ?, NOW())
@@ -69,10 +68,19 @@ const inviterCellId = (inviterInfo as any[])[0]?.cell_id;
           [service_id, memberId, user?.user_id],
         )
 
+        // Add to attendance history table
+        await connection.execute(
+          `
+          INSERT INTO attendance_status_history (attendance_id, member_id, service_id, attendance_status, member_status_at_time)
+          VALUES (?, ?, ?, ?, ?)
+        `,
+          [(attendanceResult as any).insertId, memberId, service_id, 'Present', firstTimer.status === "Stay" ? "Member" : "FirstTimer"]
+        )
+
         results.push({
           first_timer_id: (firstTimerResult as any).insertId,
           member_id: memberId,
-          membership_status: "FirstTimer"
+          membership_status: firstTimer.status === "Stay" ? "Member" : "FirstTimer"
         })
       }
 
@@ -93,7 +101,6 @@ const inviterCellId = (inviterInfo as any[])[0]?.cell_id;
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
-
 
 export async function GET(request: NextRequest) {
   try {
