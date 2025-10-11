@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
           INSERT INTO attendance_status_history (attendance_id, member_id, service_id, attendance_status, member_status_at_time)
           VALUES (?, ?, ?, ?, ?)
         `,
-          [(attendanceResult as any).insertId, memberId, service_id, 'Present', firstTimer.status === "Stay" ? "Member" : "FirstTimer"]
+          [(attendanceResult as any).insertId, memberId, service_id, 'Present', 'firstTimer']
         )
 
         results.push({

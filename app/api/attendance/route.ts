@@ -29,6 +29,17 @@ export async function POST(request: NextRequest) {
         return m.member_id
       })
 
+       // NEW: Record expected attendance for this service
+      await connection.execute(
+        `
+        INSERT IGNORE INTO service_expected_attendance (service_id, member_id, member_status_at_time)
+        SELECT ?, m.member_id, m.membership_status
+        FROM members m
+        WHERE m.membership_status IN ('Member', 'Associate', 'FirstTimer')
+        `,
+        [service_id]
+      )
+
       // Update existing attendance records or create new ones
       for (const memberId of allMemberIds) {
         const status = present_member_ids.includes(memberId) ? "Present" : "Absent"
@@ -73,7 +84,6 @@ export async function POST(request: NextRequest) {
       }
 
       // Then, check and update FirstTimers to Associates
-    // Replace the FirstTimer promotion section with this:
       for (const memberId of present_member_ids) {
         const [memberInfo] = await connection.execute(
           "SELECT membership_status FROM members WHERE member_id = ?",
