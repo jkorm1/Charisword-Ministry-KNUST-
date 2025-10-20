@@ -47,9 +47,19 @@ interface OfferingReport {
   recorded_by: string;
 }
 
+interface PaymentReport {
+  payment_id: number;
+  amount: number;
+  payment_date: string;
+  payment_type: string;
+  description: string;
+  recorded_by: string;
+}
+
 export function FinanceReports() {
   const [reports, setReports] = useState<MemberReport[]>([]);
   const [offeringReports, setOfferingReports] = useState<OfferingReport[]>([]);
+  const [paymentReports, setPaymentReports] = useState<PaymentReport[]>([]); // Add this
   const [cells, setCells] = useState([]);
   const [selectedCell, setSelectedCell] = useState<string | undefined>(
     undefined
@@ -58,9 +68,9 @@ export function FinanceReports() {
   const [dateTo, setDateTo] = useState("");
   // Fix: Use an object to track expanded states instead of a Set
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
-  const [activeTab, setActiveTab] = useState<"partnerships" | "offerings">(
-    "partnerships"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "partnerships" | "offerings" | "payments"
+  >("partnerships");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,6 +98,7 @@ export function FinanceReports() {
     fetchCells();
     fetchReports();
     fetchOfferingReports();
+    fetchPaymentReports();
   }, [selectedCell, dateFrom, dateTo]);
 
   const fetchCells = async () => {
@@ -183,6 +194,50 @@ export function FinanceReports() {
     return isNaN(date.getTime()) ? "N/A" : date.toLocaleDateString();
   };
 
+  const fetchPaymentReports = async () => {
+    if (!validateDates()) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      if (dateFrom) params.append("from", formatDateForAPI(dateFrom));
+      if (dateTo) params.append("to", formatDateForAPI(dateTo));
+
+      const token = localStorage.getItem("auth-token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await fetch(`/api/reports/payments?${params}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || `HTTP error! status: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error("Invalid data format received from server");
+      }
+
+      setPaymentReports(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+      console.error("Detailed error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -249,7 +304,14 @@ export function FinanceReports() {
             >
               Offering Reports
             </Button>
+            <Button
+              variant={activeTab === "payments" ? "default" : "outline"}
+              onClick={() => setActiveTab("payments")}
+            >
+              Payment Reports
+            </Button>
           </div>
+
           {activeTab === "partnerships" && (
             <div className="mt-4 p-4 bg-gray-50 rounded-lg">
               <p className="text-lg font-semibold">
@@ -270,6 +332,17 @@ export function FinanceReports() {
               <p className="text-lg font-semibold">
                 Total Offerings: GHS{" "}
                 {offeringReports
+                  .reduce((sum, report) => sum + Number(report.amount || 0), 0)
+                  .toFixed(2)
+                  .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+              </p>
+            </div>
+          )}
+          {activeTab === "payments" && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              <p className="text-lg font-semibold">
+                Total Payments: GHS{" "}
+                {paymentReports
                   .reduce((sum, report) => sum + Number(report.amount || 0), 0)
                   .toFixed(2)
                   .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
@@ -366,6 +439,11 @@ export function FinanceReports() {
               </TableBody>
             </Table>
           ) : (
+            ""
+          )}
+
+          {/* Offering Table */}
+          {activeTab === "offerings" && (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -384,6 +462,32 @@ export function FinanceReports() {
                     <TableCell>{formatDate(report.service_date)}</TableCell>
                     <TableCell>{report.service_type}</TableCell>
                     <TableCell>{report.topic}</TableCell>
+                    <TableCell>{report.amount.toLocaleString()}</TableCell>
+                    <TableCell>{report.recorded_by || "N/A"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+
+          {/* Payments Table */}
+          {activeTab === "payments" && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Amount (GHS)</TableHead>
+                  <TableHead>Recorded By</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paymentReports.map((report) => (
+                  <TableRow key={report.payment_id}>
+                    <TableCell>{formatDate(report.payment_date)}</TableCell>
+                    <TableCell>{report.payment_type}</TableCell>
+                    <TableCell>{report.description || "N/A"}</TableCell>
                     <TableCell>{report.amount.toLocaleString()}</TableCell>
                     <TableCell>{report.recorded_by || "N/A"}</TableCell>
                   </TableRow>

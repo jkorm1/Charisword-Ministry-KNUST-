@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -28,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Calendar, Download, Filter } from "lucide-react";
+import DetailedAttendanceReport from "./detailed-attendance-report";
 
 interface AttendanceReport {
   service_id: number;
@@ -299,154 +301,171 @@ export function AttendanceReports({
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
         </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Attendance Records</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Service Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Service Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Topic
-                    </th>
+        <Tabs defaultValue="summary" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="summary">Summary Report</TabsTrigger>
+            <TabsTrigger value="detailed">Detailed Report</TabsTrigger>
+          </TabsList>
 
-                    {/* Members Column */}
-                    <th
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      colSpan={3}
-                    >
-                      Members
-                    </th>
+          {/* --- Summary Report Tab --- */}
+          <TabsContent value="summary" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Attendance Records</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Service Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Service Type
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Topic
+                        </th>
 
-                    {/* Associates Column */}
-                    <th
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      colSpan={3}
-                    >
-                      Associates
-                    </th>
+                        {/* Members Column */}
+                        <th
+                          className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          colSpan={3}
+                        >
+                          Members
+                        </th>
 
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      First Timers
-                    </th>
+                        {/* Associates Column */}
+                        <th
+                          className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          colSpan={3}
+                        >
+                          Associates
+                        </th>
 
-                    {/* Overall Column */}
-                    <th
-                      className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
-                      colSpan={2}
-                    >
-                      Overall
-                    </th>
-                  </tr>
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          First Timers
+                        </th>
 
-                    {/* Members Subheaders */}
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Expected
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Present
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Absent
-                    </th>
-
-                    {/* Associates Subheaders */}
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Expected
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Present
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Absent
-                    </th>
-
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Count
-                    </th>
-
-                    {/* Overall Subheaders */}
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Present
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Absent
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {reports.length > 0 ? (
-                    reports.map((report) => (
-                      <tr key={report.service_id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(report.service_date).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {report.service_type}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {report.topic}
-                        </td>
-
-                        {/* Members Data */}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
-                          {report.expected_members}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
-                          {report.present_members}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
-                          {report.absent_members}
-                        </td>
-
-                        {/* Associates Data */}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
-                          {report.expected_associates}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
-                          {report.present_associates}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
-                          {report.absent_associates}
-                        </td>
-
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-blue-600">
-                          {report.first_timers}
-                        </td>
-
-                        {/* Overall Data */}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
-                          {report.total_present}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
-                          {report.total_absent}
-                        </td>
+                        {/* Overall Column */}
+                        <th
+                          className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          colSpan={2}
+                        >
+                          Overall
+                        </th>
                       </tr>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={14} className="text-center py-8">
-                        No attendance records found matching your criteria.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+
+                        {/* Members Subheaders */}
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total Membership
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Present
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Absent
+                        </th>
+
+                        {/* Associates Subheaders */}
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total Associates
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Present
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Absent
+                        </th>
+
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Count
+                        </th>
+
+                        {/* Overall Subheaders */}
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Present
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Absent
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {reports.length > 0 ? (
+                        reports.map((report) => (
+                          <tr key={report.service_id}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(
+                                report.service_date
+                              ).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {report.service_type}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {report.topic}
+                            </td>
+
+                            {/* Members Data */}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
+                              {report.expected_members}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
+                              {report.present_members}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
+                              {report.absent_members}
+                            </td>
+
+                            {/* Associates Data */}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-900">
+                              {report.expected_associates}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
+                              {report.present_associates}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
+                              {report.absent_associates}
+                            </td>
+
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-blue-600">
+                              {report.first_timers}
+                            </td>
+
+                            {/* Overall Data */}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-green-600">
+                              {report.total_present}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-red-600">
+                              {report.total_absent}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={14} className="text-center py-8">
+                            No attendance records found matching your criteria.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* --- Detailed Report Tab --- */}
+          <TabsContent value="detailed" className="space-y-4">
+            <DetailedAttendanceReport services={services} />
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
