@@ -83,7 +83,7 @@ export function PaymentForm() {
               <Input
                 id="amount"
                 type="number"
-                step="0.01"
+                step="1"
                 value={formData.amount}
                 onChange={(e) =>
                   setFormData({ ...formData, amount: e.target.value })
