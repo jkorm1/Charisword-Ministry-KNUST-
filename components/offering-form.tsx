@@ -15,6 +15,12 @@ interface Service {
   topic: string;
 }
 
+interface Program {
+  program_id: number;
+  program_name: string;
+  program_date: string;
+}
+
 interface OfferingReport {
   offering_id: number;
   amount: number;
@@ -29,18 +35,22 @@ interface ApiError {
 
 export function OfferingForm() {
   const [services, setServices] = useState<Service[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     service_id: "",
+    program_id: "",
     amount: "",
     date_recorded: new Date().toISOString().split("T")[0],
   });
+
   const [existingOffering, setExistingOffering] =
     useState<OfferingReport | null>(null);
 
   useEffect(() => {
     fetchServices();
+    fetchPrograms();
   }, []);
 
   const fetchServices = async () => {
@@ -88,39 +98,81 @@ export function OfferingForm() {
     }
   };
 
+  // Add fetchPrograms function
+  const fetchPrograms = async () => {
+    try {
+      const token = localStorage.getItem("auth-token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await fetch("/api/programs", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setPrograms(data);
+    } catch (error) {
+      console.error("Error fetching programs:", error);
+      setPrograms([]);
+    }
+  };
+
   const handleServiceChange = async (serviceId: string) => {
     setError(null);
-    setFormData({ ...formData, service_id: serviceId });
+    setFormData({
+      ...formData,
+      service_id: serviceId,
+      program_id: "", // Clear program when service is selected
+    });
 
-    if (serviceId && formData.date_recorded) {
-      await checkExistingOffering(serviceId, formData.date_recorded);
+    if (serviceId) {
+      await checkExistingOffering(serviceId);
     }
   };
 
   const handleDateChange = async (date: string) => {
     setError(null);
-    setFormData({ ...formData, date_recorded: date });
-
-    if (formData.service_id && date) {
-      await checkExistingOffering(formData.service_id, date);
-    }
+    setFormData({
+      ...formData,
+      date_recorded: date,
+    });
+    // Remove the checkExistingOffering call
   };
 
-  const checkExistingOffering = async (serviceId: string, date: string) => {
+  const checkExistingOffering = async (
+    serviceId?: string,
+    programId?: string
+  ) => {
     try {
-      const response = await fetch(
-        `/api/offerings/check?serviceId=${serviceId}&date=${date}`
-      );
+      if (!serviceId && !programId) return false;
+
+      const params = new URLSearchParams();
+      if (serviceId) params.append("serviceId", serviceId);
+      if (programId) params.append("programId", programId);
+      params.append("date", formData.date_recorded);
+
+      const response = await fetch(`/api/offerings/check?${params}`);
       if (response.ok) {
         const data = await response.json();
-        if (data.exists) {
+        if (data.exists && data.offering) {
           setExistingOffering(data.offering);
           setFormData((prev) => ({
             ...prev,
             amount: data.offering.amount.toString(),
+            date_recorded: data.offering.date_recorded,
           }));
-          setError(
-            `An offering for this service already exists on ${date}. Please update the existing record.`
+          // Show immediate alert
+          alert(
+            `An existing offering was found for this ${
+              serviceId ? "service" : "program"
+            } on ${data.offering.date_recorded}. You can now update it.`
           );
           return true;
         }
@@ -129,13 +181,14 @@ export function OfferingForm() {
       return false;
     } catch (error) {
       console.error("Error checking existing offering:", error);
+      setExistingOffering(null);
       return false;
     }
   };
 
   const validateForm = () => {
-    if (!formData.service_id) {
-      setError("Please select a service");
+    if (!formData.service_id && !formData.program_id) {
+      setError("Please select either a service or a program");
       return false;
     }
     if (!formData.amount || isNaN(parseFloat(formData.amount))) {
@@ -150,6 +203,8 @@ export function OfferingForm() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); // Always prevent default first
+    setError(null);
     if (existingOffering) {
       handleUpdate(e);
     } else {
@@ -163,14 +218,19 @@ export function OfferingForm() {
       setLoading(true);
 
       try {
+        const isUpdate = existingOffering !== null;
         const response = await fetch("/api/offerings", {
-          method: "POST",
+          method: isUpdate ? "PUT" : "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${localStorage.getItem("auth-token")}`,
           },
           body: JSON.stringify({
+            ...(isUpdate && { offering_id: existingOffering.offering_id }),
             service_id: Number.parseInt(formData.service_id),
+            program_id: formData.program_id
+              ? Number.parseInt(formData.program_id)
+              : null,
             amount: Number.parseFloat(formData.amount),
             date_recorded: formData.date_recorded,
           }),
@@ -179,12 +239,18 @@ export function OfferingForm() {
         const data = await response.json();
 
         if (response.ok) {
-          alert("Offering recorded successfully!");
+          alert(
+            isUpdate
+              ? "Offering updated successfully!"
+              : "Offering recorded successfully!"
+          );
           setFormData({
             service_id: "",
+            program_id: "",
             amount: "",
             date_recorded: new Date().toISOString().split("T")[0],
           });
+          setExistingOffering(null);
         } else {
           const apiError = data as ApiError;
           throw new Error(apiError.error || "Failed to save offering");
@@ -198,6 +264,18 @@ export function OfferingForm() {
       } finally {
         setLoading(false);
       }
+    }
+  };
+  const handleProgramChange = async (programId: string) => {
+    setError(null);
+    setFormData({
+      ...formData,
+      program_id: programId,
+      service_id: "", // Clear service when program is selected
+    });
+
+    if (programId) {
+      await checkExistingOffering(undefined, programId);
     }
   };
 
@@ -255,7 +333,11 @@ export function OfferingForm() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Coins className="h-5 w-5" />
-          {existingOffering ? "Update Offering" : "Record Offering"}
+          {existingOffering
+            ? `Update Offering - ${
+                existingOffering.service_id ? "Service" : "Program"
+              }`
+            : "Record New Offering"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -272,8 +354,13 @@ export function OfferingForm() {
               id="service"
               value={formData.service_id}
               onChange={(e) => handleServiceChange(e.target.value)}
-              className="w-full p-2 border rounded-md"
-              required
+              className={`w-full p-2 border rounded-md ${
+                formData.program_id && !formData.service_id
+                  ? "border-red-500"
+                  : ""
+              }`}
+              disabled={!!formData.program_id} // Disable when program is selected
+              required={!formData.program_id} // Required only when no program is selected
             >
               <option value="">Select service...</option>
               {services.map((service) => (
@@ -285,6 +372,24 @@ export function OfferingForm() {
             </select>
           </div>
 
+          <div>
+            <Label htmlFor="program">Program</Label>
+            <select
+              id="program"
+              value={formData.program_id}
+              onChange={(e) => handleProgramChange(e.target.value)}
+              className="w-full p-2 border rounded-md"
+              disabled={!!formData.service_id}
+            >
+              <option value="">No program</option>
+              {programs.map((program) => (
+                <option key={program.program_id} value={program.program_id}>
+                  {program.program_name} -{" "}
+                  {new Date(program.program_date).toLocaleDateString()}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <Label htmlFor="amount">Amount (GHS) *</Label>
             <Input
@@ -300,7 +405,6 @@ export function OfferingForm() {
               required
             />
           </div>
-
           <div>
             <Label htmlFor="date_recorded">Date Recorded *</Label>
             <Input
@@ -311,7 +415,6 @@ export function OfferingForm() {
               required
             />
           </div>
-
           <Button
             type="submit"
             disabled={loading}

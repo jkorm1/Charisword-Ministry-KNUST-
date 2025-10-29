@@ -29,15 +29,18 @@ interface PartnershipDetail {
 }
 
 interface Program {
-  program_id: number;
-  program_name: string;
+  id: number;
+  name: string;
+  date: string;
+  type: "program";
 }
 
 interface Service {
   id: number;
   type: string;
-  topic: string;
+  name: string;
   date: string;
+  topic?: string;
 }
 
 interface ReportsResponse {
@@ -106,6 +109,9 @@ export function FinanceReports() {
   const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [selectedServiceType, setSelectedServiceType] = useState<string>("");
   const [services, setServices] = useState<string[]>([]);
+  const [selectedService, setSelectedService] = useState<string>("");
+  const [selectedReferenceType, setSelectedReferenceType] =
+    useState<string>("");
   const [cells, setCells] = useState([]);
   const [selectedCell, setSelectedCell] = useState<string | undefined>(
     undefined
@@ -245,12 +251,14 @@ export function FinanceReports() {
       const params = new URLSearchParams();
       if (dateFrom) params.append("from", formatDateForAPI(dateFrom));
       if (dateTo) params.append("to", formatDateForAPI(dateTo));
-      if (selectedCategory && selectedCategory !== "all")
+      if (selectedCategory) {
+        // Remove the "all" check
         params.append("category", selectedCategory);
-      if (selectedProgram && selectedProgram !== "all")
-        params.append("programId", selectedProgram);
-      if (selectedServiceType && selectedServiceType !== "all")
-        params.append("serviceId", selectedServiceType);
+      }
+      if (selectedService && selectedReferenceType) {
+        params.append("serviceId", selectedService);
+        params.append("referenceType", selectedReferenceType);
+      }
 
       const response = await fetch(
         `/api/reports/payments?${params.toString()}`
@@ -289,15 +297,37 @@ export function FinanceReports() {
         throw new Error("Failed to fetch filter options");
       }
       const data = await response.json();
-      setCategories(data.categories || []);
+      setCategories(data.categories || []); // This should be fetching categories
       setServiceTypes(data.serviceTypes || []);
-      setPrograms(data.programs || []);
+      setServices((data.services || []) as Service[]);
+      setPrograms((data.programs || []) as Program[]);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to fetch filter options"
       );
     } finally {
       setLoadingFilters(false);
+    }
+  };
+
+  const handleServiceProgramChange = (value: string) => {
+    if (value === "all") {
+      // Reset both selections
+      setSelectedService("");
+      setSelectedReferenceType("");
+    } else if (value === "service:all") {
+      // Select all services
+      setSelectedService("all");
+      setSelectedReferenceType("service");
+    } else if (value === "program:all") {
+      // Select all programs
+      setSelectedService("all");
+      setSelectedReferenceType("program");
+    } else {
+      // Handle specific service/program selection
+      const [type, id] = value.split(":");
+      setSelectedService(id);
+      setSelectedReferenceType(type);
     }
   };
 
@@ -315,8 +345,8 @@ export function FinanceReports() {
     dateTo,
     activeTab,
     selectedCategory,
-    selectedProgram,
-    selectedServiceType,
+    selectedService, // Changed from selectedProgram
+    selectedReferenceType, // Added this dependency
   ]);
 
   return (
@@ -348,7 +378,6 @@ export function FinanceReports() {
               </SelectContent>
             </Select>
           </div>
-
           <div>
             <Label htmlFor="category">Payment Category</Label>
             <Select
@@ -376,55 +405,36 @@ export function FinanceReports() {
           </div>
 
           <div>
-            <Label htmlFor="serviceType">Service Type</Label>
+            <Label htmlFor="service">Service/Program</Label>
             <Select
-              value={selectedServiceType || "all"}
-              onValueChange={(value) =>
-                setSelectedServiceType(value === "all" ? "" : value)
-              }
+              value={selectedService || "all"}
+              onValueChange={handleServiceProgramChange}
             >
               <SelectTrigger>
-                <SelectValue placeholder="All services" />
+                <SelectValue placeholder="All services and programs" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All services</SelectItem>
-                {loadingFilters ? (
-                  <SelectItem value="loading">Loading...</SelectItem>
-                ) : (
-                  serviceTypes?.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  )) || []
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="program">Program</Label>
-            <Select
-              value={selectedProgram || "all"}
-              onValueChange={(value) =>
-                setSelectedProgram(
-                  value === "all" || value === "unknown" ? "" : value
-                )
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All programs" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All programs</SelectItem>
-                {programs?.map((program) => (
+                <SelectItem value="all">All services and programs</SelectItem>
+                <SelectItem value="service:all">All Services</SelectItem>
+                <SelectItem value="program:all">All Programs</SelectItem>
+                {services.map((service: Service) => (
                   <SelectItem
-                    key={program?.program_id || "unknown"} // Add null check for key
-                    value={program?.program_id?.toString() || "unknown"} // Add null checks for value
+                    key={`service:${service.id}`}
+                    value={`service:${service.id}`}
                   >
-                    {program?.program_name || "Unknown Program"} // Add null
-                    check for display
+                    {service.name} -{" "}
+                    {new Date(service.date).toLocaleDateString()}
                   </SelectItem>
-                )) || []}
+                ))}
+                {programs.map((program: Program) => (
+                  <SelectItem
+                    key={`program:${program.id}`}
+                    value={`program:${program.id}`}
+                  >
+                    {program.name} -{" "}
+                    {new Date(program.date).toLocaleDateString()}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
