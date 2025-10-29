@@ -28,6 +28,32 @@ interface PartnershipDetail {
   partner_name: string;
 }
 
+interface Program {
+  program_id: number;
+  program_name: string;
+}
+
+interface Service {
+  id: number;
+  type: string;
+  topic: string;
+  date: string;
+}
+
+interface ReportsResponse {
+  payments: PaymentReport[];
+  summary: {
+    totalOfferings: number;
+    totalPartnerships: number;
+    totalPayments: number;
+    availableBalance: number;
+    categoryTotals: Record<string, number>;
+  };
+  categories: string[];
+  programs: Program[];
+  services: Service[];
+}
+
 interface MemberReport {
   member_id: number;
   full_name: string;
@@ -53,13 +79,33 @@ interface PaymentReport {
   payment_date: string;
   payment_type: string;
   description: string;
+  payment_category: string;
+  reference_name: string;
   recorded_by: string;
+}
+
+interface PaymentSummary {
+  totalOfferings: number;
+  totalPartnerships: number;
+  totalPayments: number;
+  availableBalance: number;
+  categoryTotals: Record<string, number>;
 }
 
 export function FinanceReports() {
   const [reports, setReports] = useState<MemberReport[]>([]);
   const [offeringReports, setOfferingReports] = useState<OfferingReport[]>([]);
-  const [paymentReports, setPaymentReports] = useState<PaymentReport[]>([]); // Add this
+  const [paymentReports, setPaymentReports] = useState<PaymentReport[]>([]);
+  const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(
+    null
+  );
+  const [categories, setCategories] = useState<string[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [selectedProgram, setSelectedProgram] = useState<string>("");
+  const [selectedServiceType, setSelectedServiceType] = useState<string>("");
+  const [services, setServices] = useState<string[]>([]);
   const [cells, setCells] = useState([]);
   const [selectedCell, setSelectedCell] = useState<string | undefined>(
     undefined
@@ -79,6 +125,7 @@ export function FinanceReports() {
     if (!date) return "";
     return new Date(date).toISOString().split("T")[0];
   };
+  const [loadingFilters, setLoadingFilters] = useState(false);
 
   // Date validation function
   const validateDates = () => {
@@ -93,13 +140,6 @@ export function FinanceReports() {
     setError(null);
     return true;
   };
-
-  useEffect(() => {
-    fetchCells();
-    fetchReports();
-    fetchOfferingReports();
-    fetchPaymentReports();
-  }, [selectedCell, dateFrom, dateTo]);
 
   const fetchCells = async () => {
     try {
@@ -194,6 +234,7 @@ export function FinanceReports() {
     return isNaN(date.getTime()) ? "N/A" : date.toLocaleDateString();
   };
 
+  // Update fetchPaymentReports function
   const fetchPaymentReports = async () => {
     if (!validateDates()) return;
 
@@ -204,32 +245,24 @@ export function FinanceReports() {
       const params = new URLSearchParams();
       if (dateFrom) params.append("from", formatDateForAPI(dateFrom));
       if (dateTo) params.append("to", formatDateForAPI(dateTo));
+      if (selectedCategory && selectedCategory !== "all")
+        params.append("category", selectedCategory);
+      if (selectedProgram && selectedProgram !== "all")
+        params.append("programId", selectedProgram);
+      if (selectedServiceType && selectedServiceType !== "all")
+        params.append("serviceId", selectedServiceType);
 
-      const token = localStorage.getItem("auth-token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
-
-      const response = await fetch(`/api/reports/payments?${params}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || `HTTP error! status: ${response.status}`
-        );
-      }
+      const response = await fetch(
+        `/api/reports/payments?${params.toString()}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch payment reports");
 
       const data = await response.json();
-      if (!Array.isArray(data)) {
-        throw new Error("Invalid data format received from server");
-      }
-
-      setPaymentReports(data);
+      setPaymentReports(data.payments || []);
+      setPaymentSummary(data.summary);
+      setCategories(data.categories || []);
+      setPrograms(data.programs || []);
+      setServices(data.services || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
       console.error("Detailed error:", err);
@@ -237,6 +270,54 @@ export function FinanceReports() {
       setLoading(false);
     }
   };
+
+  const fetchFilterOptions = async () => {
+    setLoadingFilters(true);
+    try {
+      const token = localStorage.getItem("auth-token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await fetch("/api/reports/payments/filters", {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch filter options");
+      }
+      const data = await response.json();
+      setCategories(data.categories || []);
+      setServiceTypes(data.serviceTypes || []);
+      setPrograms(data.programs || []);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch filter options"
+      );
+    } finally {
+      setLoadingFilters(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCells();
+    fetchReports();
+    fetchOfferingReports();
+    fetchPaymentReports();
+    if (activeTab === "payments") {
+      fetchFilterOptions();
+    }
+  }, [
+    selectedCell,
+    dateFrom,
+    dateTo,
+    activeTab,
+    selectedCategory,
+    selectedProgram,
+    selectedServiceType,
+  ]);
 
   return (
     <div className="space-y-6">
@@ -267,6 +348,87 @@ export function FinanceReports() {
               </SelectContent>
             </Select>
           </div>
+
+          <div>
+            <Label htmlFor="category">Payment Category</Label>
+            <Select
+              value={selectedCategory || "all"}
+              onValueChange={(value) =>
+                setSelectedCategory(value === "all" ? "" : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                {loadingFilters ? (
+                  <SelectItem value="loading">Loading...</SelectItem>
+                ) : (
+                  categories?.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  )) || []
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="serviceType">Service Type</Label>
+            <Select
+              value={selectedServiceType || "all"}
+              onValueChange={(value) =>
+                setSelectedServiceType(value === "all" ? "" : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All services" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All services</SelectItem>
+                {loadingFilters ? (
+                  <SelectItem value="loading">Loading...</SelectItem>
+                ) : (
+                  serviceTypes?.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  )) || []
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="program">Program</Label>
+            <Select
+              value={selectedProgram || "all"}
+              onValueChange={(value) =>
+                setSelectedProgram(
+                  value === "all" || value === "unknown" ? "" : value
+                )
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All programs" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All programs</SelectItem>
+                {programs?.map((program) => (
+                  <SelectItem
+                    key={program?.program_id || "unknown"} // Add null check for key
+                    value={program?.program_id?.toString() || "unknown"} // Add null checks for value
+                  >
+                    {program?.program_name || "Unknown Program"} // Add null
+                    check for display
+                  </SelectItem>
+                )) || []}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div>
             <Label htmlFor="from">From date</Label>
             <Input
@@ -311,7 +473,6 @@ export function FinanceReports() {
               Payment Reports
             </Button>
           </div>
-
           {activeTab === "partnerships" && (
             <div className="mt-4 p-4 bg-gray-50 rounded-lg">
               <p className="text-lg font-semibold">
@@ -338,15 +499,71 @@ export function FinanceReports() {
               </p>
             </div>
           )}
-          {activeTab === "payments" && (
+
+          {activeTab === "payments" && paymentSummary && (
             <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <p className="text-lg font-semibold">
-                Total Payments: GHS{" "}
-                {paymentReports
-                  .reduce((sum, report) => sum + Number(report.amount || 0), 0)
-                  .toFixed(2)
-                  .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <p className="text-sm text-gray-600">Total Offerings</p>
+                  <p className="text-lg font-semibold">
+                    GHS{" "}
+                    {paymentSummary.totalOfferings
+                      .toFixed(2)
+                      .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Partnerships</p>
+                  <p className="text-lg font-semibold">
+                    GHS{" "}
+                    {paymentSummary.totalPartnerships
+                      .toFixed(2)
+                      .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Payments</p>
+                  <p className="text-lg font-semibold">
+                    GHS{" "}
+                    {paymentSummary.totalPayments
+                      .toFixed(2)
+                      .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Available Balance</p>
+                  <p
+                    className={`text-lg font-semibold ${
+                      paymentSummary.availableBalance < 0
+                        ? "text-red-600"
+                        : "text-green-600"
+                    }`}
+                  >
+                    GHS{" "}
+                    {paymentSummary.availableBalance
+                      .toFixed(2)
+                      .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  </p>
+                </div>
+              </div>
+              <div className="border-t pt-4">
+                <h4 className="font-semibold mb-2">Expenses by Category</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {Object.entries(paymentSummary.categoryTotals).map(
+                    ([category, total]) => (
+                      <div key={category} className="flex gap-2">
+                        <span className="text-sm">{category}:</span>
+                        <span className="text-sm font-medium">
+                          GHS{" "}
+                          {total
+                            .toFixed(2)
+                            .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                        </span>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </CardHeader>
@@ -472,26 +689,27 @@ export function FinanceReports() {
 
           {/* Payments Table */}
           {activeTab === "payments" && (
+            // Update the payments table
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Service/Program</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Amount (GHS)</TableHead>
-                  <TableHead>Recorded By</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paymentReports.map((report) => (
+                {paymentReports?.map((report) => (
                   <TableRow key={report.payment_id}>
                     <TableCell>{formatDate(report.payment_date)}</TableCell>
-                    <TableCell>{report.payment_type}</TableCell>
-                    <TableCell>{report.description || "N/A"}</TableCell>
+                    <TableCell>{report.payment_category}</TableCell>
+                    <TableCell>{report.reference_name}</TableCell>
+                    <TableCell>{report.description}</TableCell>
                     <TableCell>{report.amount.toLocaleString()}</TableCell>
-                    <TableCell>{report.recorded_by || "N/A"}</TableCell>
                   </TableRow>
-                ))}
+                )) || []}
               </TableBody>
             </Table>
           )}

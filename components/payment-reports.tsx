@@ -1,7 +1,7 @@
-// components/payment-reports.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -21,96 +21,49 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface PaymentReport {
-  payment_id: number;
-  amount: number;
-  payment_type: string;
-  payment_category: string;
-  description: string;
-  reference_name?: string;
-  reference_date?: string;
-  recorded_by: string;
-  created_at: string;
+interface MonthlyReport {
+  month: string;
+  offering: number;
+  partnership: number;
+  receipts: number;
+  payments: number;
+  balance: number;
+}
+
+interface PaymentCategory {
+  category: string;
+  items: {
+    description: string;
+    amount: number;
+  }[];
+  total: number;
 }
 
 export function PaymentReports() {
-  const [reports, setReports] = useState<PaymentReport[]>([]);
-  const [services, setServices] = useState([]);
-  const [programs, setPrograms] = useState([]);
-  const [selectedService, setSelectedService] = useState<string>("");
-  const [selectedProgram, setSelectedProgram] = useState<string>("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [activeTab, setActiveTab] = useState<"service" | "program" | "regular">(
-    "service"
+  const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
+  const [paymentCategories, setPaymentCategories] = useState<PaymentCategory[]>(
+    []
+  );
+  const [selectedYear, setSelectedYear] = useState(
+    new Date().getFullYear().toString()
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchServices();
-    fetchPrograms();
-    fetchReports();
-  }, [activeTab, selectedService, selectedProgram, dateFrom, dateTo]);
+    fetchMonthlyReports();
+    fetchPaymentCategories();
+  }, [selectedYear]);
 
-  const fetchServices = async () => {
-    try {
-      const response = await fetch("/api/services");
-      const data = await response.json();
-      setServices(data);
-    } catch (error) {
-      console.error("Error fetching services:", error);
-    }
-  };
-
-  const fetchPrograms = async () => {
-    try {
-      const response = await fetch("/api/programs");
-      const data = await response.json();
-      setPrograms(data);
-    } catch (error) {
-      console.error("Error fetching programs:", error);
-    }
-  };
-
-  const fetchReports = async () => {
+  const fetchMonthlyReports = async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const params = new URLSearchParams();
-      params.append("category", activeTab);
-
-      if (activeTab === "service" && selectedService) {
-        params.append("referenceId", selectedService);
-        params.append("referenceType", "service");
-      }
-
-      if (activeTab === "program" && selectedProgram) {
-        params.append("referenceId", selectedProgram);
-        params.append("referenceType", "program");
-      }
-
-      if (dateFrom) params.append("from", dateFrom);
-      if (dateTo) params.append("to", dateTo);
-
-      const token = localStorage.getItem("auth-token");
-      const response = await fetch(`/api/payments?${params}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to fetch reports");
-      }
-
+      const response = await fetch(`/api/reports/monthly?year=${selectedYear}`);
+      if (!response.ok) throw new Error("Failed to fetch reports");
       const data = await response.json();
-      setReports(data);
+      setMonthlyReports(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -118,119 +71,78 @@ export function PaymentReports() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return isNaN(date.getTime()) ? "N/A" : date.toLocaleDateString();
+  const fetchPaymentCategories = async () => {
+    try {
+      const response = await fetch(
+        `/api/reports/payment-categories?year=${selectedYear}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch payment categories");
+      const data = await response.json();
+      setPaymentCategories(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    }
   };
 
-  const totalAmount = reports.reduce(
-    (sum, report) => sum + Number(report.amount),
-    0
-  );
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-GH", {
+      style: "currency",
+      currency: "GHS",
+    }).format(amount);
+  };
+
+  const calculateTotals = () => {
+    return monthlyReports.reduce(
+      (acc, report) => ({
+        offering: acc.offering + report.offering,
+        partnership: acc.partnership + report.partnership,
+        receipts: acc.receipts + report.receipts,
+        payments: acc.payments + report.payments,
+        balance: acc.balance + report.balance,
+      }),
+      { offering: 0, partnership: 0, receipts: 0, payments: 0, balance: 0 }
+    );
+  };
+
+  const totals = calculateTotals();
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <Card>
         <CardHeader>
-          <CardTitle>Payment Reports</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">
+            CHARISWORD CAMPUS MINISTRY
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) => setActiveTab(value as any)}
-          >
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="service">Service Payments</TabsTrigger>
-              <TabsTrigger value="program">Program Payments</TabsTrigger>
-              <TabsTrigger value="regular">Regular Payments</TabsTrigger>
-            </TabsList>
+      </Card>
 
-            <div className="mt-6 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {activeTab === "service" && (
-                  <div>
-                    <Label htmlFor="service">Select Service</Label>
-                    <Select
-                      value={selectedService}
-                      onValueChange={setSelectedService}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a service" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {services.map((service: any) => (
-                          <SelectItem
-                            key={service.service_id}
-                            value={service.service_id}
-                          >
-                            {formatDate(service.service_date)} -{" "}
-                            {service.service_type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                {activeTab === "program" && (
-                  <div>
-                    <Label htmlFor="program">Select Program</Label>
-                    <Select
-                      value={selectedProgram}
-                      onValueChange={setSelectedProgram}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a program" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {programs.map((program: any) => (
-                          <SelectItem
-                            key={program.program_id}
-                            value={program.program_id}
-                          >
-                            {program.program_name} -{" "}
-                            {formatDate(program.program_date)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                <div>
-                  <Label htmlFor="from">From date</Label>
-                  <Input
-                    id="from"
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="to">To date</Label>
-                  <Input
-                    id="to"
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <p className="text-lg font-semibold">
-                  Total Amount: GHS{" "}
-                  {totalAmount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                </p>
-              </div>
-            </div>
-          </Tabs>
+      {/* Year Filter */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center space-x-4">
+            <Label htmlFor="year">Select Year</Label>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                {[2023, 2024, 2025].map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 
+      {/* Monthly Reports Table */}
       <Card>
+        <CardHeader>
+          <CardTitle>Monthly Financial Report</CardTitle>
+        </CardHeader>
         <CardContent>
           {loading && <p className="text-center py-4">Loading reports...</p>}
           {error && <p className="text-red-500 text-center py-4">{error}</p>}
@@ -238,38 +150,83 @@ export function PaymentReports() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Description</TableHead>
-                {activeTab !== "regular" && <TableHead>Reference</TableHead>}
-                <TableHead>Amount (GHS)</TableHead>
-                <TableHead>Recorded By</TableHead>
+                <TableHead>Month</TableHead>
+                <TableHead>Offering</TableHead>
+                <TableHead>Partnership</TableHead>
+                <TableHead>Receipts</TableHead>
+                <TableHead>Payments</TableHead>
+                <TableHead>Balance</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reports.map((report) => (
-                <TableRow key={report.payment_id}>
-                  <TableCell>{formatDate(report.created_at)}</TableCell>
-                  <TableCell>{report.payment_type}</TableCell>
-                  <TableCell>{report.description}</TableCell>
-                  {activeTab !== "regular" && (
-                    <TableCell>
-                      {report.reference_name && (
-                        <div>
-                          <div>{report.reference_name}</div>
-                          <div className="text-sm text-gray-500">
-                            {formatDate(report.reference_date)}
-                          </div>
-                        </div>
-                      )}
-                    </TableCell>
-                  )}
-                  <TableCell>{report.amount.toLocaleString()}</TableCell>
-                  <TableCell>{report.recorded_by}</TableCell>
+              {monthlyReports.map((report) => (
+                <TableRow key={report.month}>
+                  <TableCell className="font-semibold">
+                    {report.month}
+                  </TableCell>
+                  <TableCell>{formatCurrency(report.offering)}</TableCell>
+                  <TableCell>{formatCurrency(report.partnership)}</TableCell>
+                  <TableCell>{formatCurrency(report.receipts)}</TableCell>
+                  <TableCell>{formatCurrency(report.payments)}</TableCell>
+                  <TableCell
+                    className={
+                      report.balance >= 0 ? "text-green-600" : "text-red-600"
+                    }
+                  >
+                    {formatCurrency(report.balance)}
+                  </TableCell>
                 </TableRow>
               ))}
+              <TableRow className="font-bold bg-gray-50">
+                <TableCell>Total</TableCell>
+                <TableCell>{formatCurrency(totals.offering)}</TableCell>
+                <TableCell>{formatCurrency(totals.partnership)}</TableCell>
+                <TableCell>{formatCurrency(totals.receipts)}</TableCell>
+                <TableCell>{formatCurrency(totals.payments)}</TableCell>
+                <TableCell
+                  className={
+                    totals.balance >= 0 ? "text-green-600" : "text-red-600"
+                  }
+                >
+                  {formatCurrency(totals.balance)}
+                </TableCell>
+              </TableRow>
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      {/* Payment Categories */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Breakdown</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {paymentCategories.map((category) => (
+              <div key={category.category} className="space-y-2">
+                <h3 className="font-semibold text-lg">{category.category}</h3>
+                <Table>
+                  <TableBody>
+                    {category.items.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(item.amount)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold bg-gray-50">
+                      <TableCell>Total</TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(category.total)}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
     </div>

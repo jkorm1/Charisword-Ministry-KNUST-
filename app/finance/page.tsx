@@ -43,12 +43,6 @@ function FinanceContent() {
 
         <TabsContent value="reports">
           <Tabs defaultValue="offerings" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 max-w-xl mx-auto">
-              <TabsTrigger value="offerings">Offerings</TabsTrigger>
-              <TabsTrigger value="partnerships">Partnerships</TabsTrigger>
-              <TabsTrigger value="payments">Payments</TabsTrigger>
-            </TabsList>
-
             <TabsContent value="offerings">
               <FinanceReports />
             </TabsContent>
