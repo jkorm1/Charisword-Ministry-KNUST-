@@ -407,7 +407,11 @@ export function FinanceReports() {
           <div>
             <Label htmlFor="service">Service/Program</Label>
             <Select
-              value={selectedService || "all"}
+              value={
+                selectedReferenceType
+                  ? `${selectedReferenceType}:${selectedService}`
+                  : "all"
+              }
               onValueChange={handleServiceProgramChange}
             >
               <SelectTrigger>

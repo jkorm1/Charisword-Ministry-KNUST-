@@ -47,25 +47,26 @@ export async function GET(request: NextRequest) {
       params.push(to);
     }
 
-    if (category) {
+    if (category && category !== 'all') {
       query += " AND p.payment_category = ?";
       params.push(category);
     }
 
     // Handle service/program filtering
- if (serviceId && referenceType) {
+if (referenceType) {
   if (referenceType === 'service:all') {
     query += " AND p.reference_type = 'service'";
   } else if (referenceType === 'program:all') {
     query += " AND p.reference_type = 'program'";
-  } else if (referenceType === 'service') {
+  } else if (referenceType === 'service' && serviceId) {
     query += " AND p.reference_type = 'service' AND p.reference_id = ?";
     params.push(serviceId);
-  } else if (referenceType === 'program') {
+  } else if (referenceType === 'program' && serviceId) {
     query += " AND p.reference_type = 'program' AND p.reference_id = ?";
     params.push(serviceId);
   }
 }
+
 
 
     query += " ORDER BY p.payment_date DESC, p.created_at DESC";

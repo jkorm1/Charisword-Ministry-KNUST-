@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       services: servicesRows as any[],
       programs: programsRows as any[],
+      categories: categories,
+      serviceTypes: serviceTypes,
     });
   } catch (error) {
     console.error("Error fetching filter options:", error);
