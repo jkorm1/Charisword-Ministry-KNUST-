@@ -18,6 +18,91 @@ interface ProcessedRow {
   last_contribution_date: string;
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getUserFromRequest(request)
+    requireRole(["admin", "finance_leader"])(user)
+
+    const { 
+      member_id, 
+      partner_name, 
+      amount, 
+      date_given,
+      service_id,
+      program_id 
+    } = await request.json()
+
+    // Validate required fields
+    if (!partner_name || !amount || !date_given) {
+      return NextResponse.json({ 
+        error: "Partner name, amount, and date are required" 
+      }, { status: 400 })
+    }
+
+    // Validate mutual exclusivity of service and program
+    if (service_id && program_id) {
+      return NextResponse.json({ 
+        error: "Cannot associate partnership with both service and program" 
+      }, { status: 400 })
+    }
+
+    // Validate amount
+    if (isNaN(Number(amount)) || Number(amount) <= 0) {
+      return NextResponse.json({ 
+        error: "Amount must be a positive number" 
+      }, { status: 400 })
+    }
+
+    // Validate service/program existence if provided
+    if (service_id) {
+      const [service] = await pool.execute(
+        "SELECT service_id FROM services WHERE service_id = ?",
+        [service_id]
+      )
+      if (!(service as any[]).length) {
+        return NextResponse.json({ 
+          error: "Invalid service selected" 
+        }, { status: 400 })
+      }
+    }
+
+    if (program_id) {
+      const [program] = await pool.execute(
+        "SELECT program_id FROM programs WHERE program_id = ?",
+        [program_id]
+      )
+      if (!(program as any[]).length) {
+        return NextResponse.json({ 
+          error: "Invalid program selected" 
+        }, { status: 400 })
+      }
+    }
+
+    const [result] = await pool.execute(
+      `INSERT INTO partnerships 
+       (member_id, partner_name, amount, date_given, service_id, program_id, recorded_by_user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        member_id || null,
+        partner_name,
+        Number(amount),
+        date_given,
+        service_id || null,
+        program_id || null,
+        user?.user_id
+      ]
+    )
+
+    return NextResponse.json({
+      message: "Partnership recorded successfully",
+      partnership_id: (result as any).insertId
+    })
+  } catch (error) {
+    console.error("Create partnership error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
 // GET method for fetching partnership reports
 export async function GET(request: NextRequest) {
   try {
@@ -103,39 +188,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST method for creating new partnerships
-export async function POST(request: NextRequest) {
-  try {
-    const user = await getUserFromRequest(request)
-    requireRole(["admin", "finance_leader"])(user)
-
-    const { member_id, partner_name, amount, date_given } = await request.json()
-
-    // Validate required fields
-    if (!partner_name || !amount || !date_given) {
-      return NextResponse.json(
-        { error: "Partner name, amount, and date are required" },
-        { status: 400 }
-      )
-    }
-
-    // Insert the partnership record
-    const [result] = await pool.execute(
-      `INSERT INTO partnerships (member_id, partner_name, amount, date_given, recorded_by_user_id)
-       VALUES (?, ?, ?, ?, ?)`,
-      [member_id || null, partner_name, amount, date_given, user?.user_id]
-    )
-
-    return NextResponse.json({ 
-      success: true, 
-      id: (result as any).insertId,
-      message: "Partnership recorded successfully"
-    })
-  } catch (error) {
-    console.error("Error creating partnership:", error)
-    return NextResponse.json(
-      { error: "Failed to create partnership" },
-      { status: 500 }
-    )
-  }
-}

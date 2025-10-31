@@ -53,21 +53,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Handle service/program filtering
-if (referenceType) {
-  if (referenceType === 'service:all') {
-    query += " AND p.reference_type = 'service'";
-  } else if (referenceType === 'program:all') {
-    query += " AND p.reference_type = 'program'";
-  } else if (referenceType === 'service' && serviceId) {
-    query += " AND p.reference_type = 'service' AND p.reference_id = ?";
-    params.push(serviceId);
-  } else if (referenceType === 'program' && serviceId) {
-    query += " AND p.reference_type = 'program' AND p.reference_id = ?";
-    params.push(serviceId);
-  }
-}
-
-
+    if (referenceType) {
+      if (referenceType === 'service:all') {
+        query += " AND p.reference_type = 'service'";
+      } else if (referenceType === 'program:all') {
+        query += " AND p.reference_type = 'program'";
+      } else if (referenceType === 'service' && serviceId) {
+        query += " AND p.reference_type = 'service' AND p.reference_id = ?";
+        params.push(serviceId);
+      } else if (referenceType === 'program' && serviceId) {
+        query += " AND p.reference_type = 'program' AND p.reference_id = ?";
+        params.push(serviceId);
+      }
+    }
 
     query += " ORDER BY p.payment_date DESC, p.created_at DESC";
 
@@ -90,26 +88,52 @@ if (referenceType) {
       offeringsQuery += " AND o.date_recorded <= ?";
       offeringParams.push(to);
     }
-    if (serviceId && referenceType === 'service') {
-      offeringsQuery += " AND o.service_id = ?";
-      offeringParams.push(serviceId);
+
+    // Add service/program filtering for offerings
+    if (referenceType) {
+      if (referenceType === 'service:all') {
+        offeringsQuery += " AND o.service_id IS NOT NULL";
+      } else if (referenceType === 'program:all') {
+        offeringsQuery += " AND o.program_id IS NOT NULL";
+      } else if (referenceType === 'service' && serviceId) {
+        offeringsQuery += " AND o.service_id = ?";
+        offeringParams.push(serviceId);
+      } else if (referenceType === 'program' && serviceId) {
+        offeringsQuery += " AND o.program_id = ?";
+        offeringParams.push(serviceId);
+      }
     }
 
     // Get total partnerships
     let partnershipsQuery = `
       SELECT COALESCE(SUM(amount), 0) as total_partnerships
-      FROM partnerships
+      FROM partnerships p
       WHERE 1=1
     `;
     const partnershipParams: any[] = [];
     
     if (from) {
-      partnershipsQuery += " AND date_given >= ?";
+      partnershipsQuery += " AND p.date_given >= ?";
       partnershipParams.push(from);
     }
     if (to) {
-      partnershipsQuery += " AND date_given <= ?";
+      partnershipsQuery += " AND p.date_given <= ?";
       partnershipParams.push(to);
+    }
+
+    // Add service/program filtering for partnerships
+    if (referenceType) {
+      if (referenceType === 'service:all') {
+        partnershipsQuery += " AND p.service_id IS NOT NULL";
+      } else if (referenceType === 'program:all') {
+        partnershipsQuery += " AND p.program_id IS NOT NULL";
+      } else if (referenceType === 'service' && serviceId) {
+        partnershipsQuery += " AND p.service_id = ?";
+        partnershipParams.push(serviceId);
+      } else if (referenceType === 'program' && serviceId) {
+        partnershipsQuery += " AND p.program_id = ?";
+        partnershipParams.push(serviceId);
+      }
     }
 
     // Execute all queries
@@ -140,6 +164,7 @@ if (referenceType) {
         totalOfferings: Number(total_offerings),
         totalPartnerships: Number(total_partnerships),
         totalPayments,
+        totalReceipts,
         availableBalance,
         categoryTotals
       }

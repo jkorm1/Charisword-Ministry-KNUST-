@@ -13,9 +13,25 @@ interface Member {
   full_name: string;
 }
 
+interface Service {
+  service_id: number;
+  service_date: string;
+  service_type: string;
+  topic: string;
+  formatted_date?: string;
+}
+
+interface Program {
+  program_id: number;
+  program_name: string;
+  program_date: string;
+}
+
 export function PartnershipForm() {
   const [members, setMembers] = useState<Member[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -24,36 +40,30 @@ export function PartnershipForm() {
     member_id: null as number | null,
     amount: "",
     date_given: new Date().toISOString().split("T")[0],
+    service_id: "",
+    program_id: "",
   });
 
   useEffect(() => {
     fetchMembers();
+    fetchServices();
+    fetchPrograms();
   }, []);
 
   const fetchMembers = async () => {
     try {
-      console.log("Fetching members...");
       setFetchError(null);
-
       const token = localStorage.getItem("auth-token");
-      if (!token) {
-        throw new Error("No authentication token found");
-      }
+      if (!token) throw new Error("No authentication token found");
 
       const response = await fetch("/api/partnerships", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(`HTTP error! status: ${response.status}`);
-      }
 
       const data = await response.json();
-      console.log("Partnership data received:", data);
-
-      // Extract unique members from partnership data
       const uniqueMembers = Array.from(
         new Map(
           data.map((item: any) => [
@@ -65,8 +75,6 @@ export function PartnershipForm() {
           ])
         ).values()
       );
-
-      console.log("Unique members:", uniqueMembers);
       setMembers(uniqueMembers);
     } catch (error) {
       console.error("Error fetching partnership data:", error);
@@ -74,29 +82,71 @@ export function PartnershipForm() {
     }
   };
 
+  const fetchServices = async () => {
+    try {
+      const token = localStorage.getItem("auth-token");
+      if (!token) throw new Error("No authentication token found");
+
+      const response = await fetch("/api/services", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+
+      const data = await response.json();
+      const formattedServices = data.map((service: Service) => ({
+        ...service,
+        formatted_date: new Date(service.service_date).toLocaleDateString(
+          "en-US",
+          { year: "numeric", month: "short", day: "numeric" }
+        ),
+      }));
+      setServices(formattedServices);
+    } catch (error) {
+      console.error("Error fetching services:", error);
+      setServices([]);
+    }
+  };
+
+  const fetchPrograms = async () => {
+    try {
+      const token = localStorage.getItem("auth-token");
+      if (!token) throw new Error("No authentication token found");
+
+      const response = await fetch("/api/programs", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok)
+        throw new Error(`HTTP error! status: ${response.status}`);
+
+      const data = await response.json();
+      setPrograms(data);
+    } catch (error) {
+      console.error("Error fetching programs:", error);
+      setPrograms([]);
+    }
+  };
+
   const handleNameSearch = (searchTerm: string) => {
-    console.log("Starting search for:", searchTerm);
     setFormData({ ...formData, partner_name: searchTerm, member_id: null });
     setIsSearching(true);
 
     if (searchTerm.trim().length > 0) {
-      console.log("Filtering members...");
       const filtered = members.filter(
         (member) =>
           member.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           searchTerm.toLowerCase().includes(member.full_name.toLowerCase())
       );
-      console.log("Filtered members:", filtered);
       setFilteredMembers(filtered);
     } else {
-      console.log("Search term is empty, clearing results");
       setFilteredMembers([]);
     }
     setIsSearching(false);
   };
 
   const selectMember = (member: Member) => {
-    console.log("Member selected:", member.full_name);
     setFormData({
       ...formData,
       partner_name: member.full_name,
@@ -108,7 +158,6 @@ export function PartnershipForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    console.log("Submitting form...");
 
     try {
       const response = await fetch("/api/partnerships", {
@@ -119,22 +168,24 @@ export function PartnershipForm() {
           partner_name: formData.partner_name,
           amount: Number.parseFloat(formData.amount),
           date_given: formData.date_given,
+          service_id: formData.service_id || null,
+          program_id: formData.program_id || null,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Partnership recorded successfully");
         alert(data.message || "Partnership recorded successfully!");
         setFormData({
           partner_name: "",
           member_id: null,
           amount: "",
           date_given: new Date().toISOString().split("T")[0],
+          service_id: "",
+          program_id: "",
         });
       } else {
         const error = await response.json();
-        console.log("Failed to record partnership:", error);
         throw new Error(error.error || "Failed to record partnership");
       }
     } catch (error) {
@@ -180,6 +231,60 @@ export function PartnershipForm() {
                 ))}
               </div>
             )}
+          </div>
+
+          <div>
+            <Label htmlFor="service">Service</Label>
+            <select
+              id="service"
+              value={formData.service_id}
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  service_id: e.target.value,
+                  program_id: "", // Clear program when service is selected
+                });
+              }}
+              className={`w-full p-2 border rounded-md ${
+                formData.program_id ? "border-gray-300 bg-gray-100" : ""
+              }`}
+              disabled={!!formData.program_id}
+            >
+              <option value="">No service</option>
+              {services.map((service) => (
+                <option key={service.service_id} value={service.service_id}>
+                  {service.formatted_date} - {service.service_type} (
+                  {service.topic})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <Label htmlFor="program">Program</Label>
+            <select
+              id="program"
+              value={formData.program_id}
+              onChange={(e) => {
+                setFormData({
+                  ...formData,
+                  program_id: e.target.value,
+                  service_id: "", // Clear service when program is selected
+                });
+              }}
+              className={`w-full p-2 border rounded-md ${
+                formData.service_id ? "border-gray-300 bg-gray-100" : ""
+              }`}
+              disabled={!!formData.service_id}
+            >
+              <option value="">No program</option>
+              {programs.map((program) => (
+                <option key={program.program_id} value={program.program_id}>
+                  {program.program_name} -{" "}
+                  {new Date(program.program_date).toLocaleDateString()}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

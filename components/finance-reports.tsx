@@ -91,6 +91,7 @@ interface PaymentSummary {
   totalOfferings: number;
   totalPartnerships: number;
   totalPayments: number;
+  totalReceipts: number;
   availableBalance: number;
   categoryTotals: Record<string, number>;
 }
@@ -531,6 +532,15 @@ export function FinanceReports() {
                   <p className="text-lg font-semibold">
                     GHS{" "}
                     {paymentSummary.totalPartnerships
+                      .toFixed(2)
+                      .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total Receipts</p>
+                  <p className="text-lg font-semibold">
+                    GHS{" "}
+                    {paymentSummary.totalReceipts
                       .toFixed(2)
                       .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
                   </p>
