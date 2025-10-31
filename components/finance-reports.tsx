@@ -689,9 +689,9 @@ export function FinanceReports() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date Recorded</TableHead>
-                  <TableHead>Service Date</TableHead>
-                  <TableHead>Service Type</TableHead>
-                  <TableHead>Topic</TableHead>
+                  <TableHead>Event Date</TableHead>
+                  <TableHead>Event Type</TableHead>
+                  <TableHead>Description</TableHead>
                   <TableHead>Amount (GHS)</TableHead>
                   <TableHead>Recorded By</TableHead>
                 </TableRow>
@@ -700,9 +700,9 @@ export function FinanceReports() {
                 {offeringReports.map((report) => (
                   <TableRow key={report.offering_id}>
                     <TableCell>{formatDate(report.date_recorded)}</TableCell>
-                    <TableCell>{formatDate(report.service_date)}</TableCell>
-                    <TableCell>{report.service_type}</TableCell>
-                    <TableCell>{report.topic}</TableCell>
+                    <TableCell>{formatDate(report.event_date)}</TableCell>
+                    <TableCell>{report.event_type}</TableCell>
+                    <TableCell>{report.event_description}</TableCell>
                     <TableCell>{report.amount.toLocaleString()}</TableCell>
                     <TableCell>{report.recorded_by || "N/A"}</TableCell>
                   </TableRow>
