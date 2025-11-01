@@ -298,14 +298,21 @@ export function FinanceReports() {
         throw new Error("Failed to fetch filter options");
       }
       const data = await response.json();
-      setCategories(data.categories || []); // This should be fetching categories
-      setServiceTypes(data.serviceTypes || []);
-      setServices((data.services || []) as Service[]);
-      setPrograms((data.programs || []) as Program[]);
+      setCategories(Array.isArray(data.categories) ? data.categories : []);
+      setServiceTypes(
+        Array.isArray(data.serviceTypes) ? data.serviceTypes : []
+      );
+      setServices(Array.isArray(data.services) ? data.services : []);
+      setPrograms(Array.isArray(data.programs) ? data.programs : []);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to fetch filter options"
       );
+      // Ensure we still set empty arrays on error
+      setCategories([]);
+      setServiceTypes([]);
+      setServices([]);
+      setPrograms([]);
     } finally {
       setLoadingFilters(false);
     }
@@ -316,14 +323,6 @@ export function FinanceReports() {
       // Reset both selections
       setSelectedService("");
       setSelectedReferenceType("");
-    } else if (value === "service:all") {
-      // Select all services
-      setSelectedService("all");
-      setSelectedReferenceType("service");
-    } else if (value === "program:all") {
-      // Select all programs
-      setSelectedService("all");
-      setSelectedReferenceType("program");
     } else {
       // Handle specific service/program selection
       const [type, id] = value.split(":");
@@ -337,9 +336,7 @@ export function FinanceReports() {
     fetchReports();
     fetchOfferingReports();
     fetchPaymentReports();
-    if (activeTab === "payments") {
-      fetchFilterOptions();
-    }
+    fetchFilterOptions();
   }, [
     selectedCell,
     dateFrom,
@@ -420,8 +417,6 @@ export function FinanceReports() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All services and programs</SelectItem>
-                <SelectItem value="service:all">All Services</SelectItem>
-                <SelectItem value="program:all">All Programs</SelectItem>
                 {services.map((service: Service) => (
                   <SelectItem
                     key={`service:${service.id}`}

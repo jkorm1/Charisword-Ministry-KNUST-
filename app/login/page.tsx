@@ -1,60 +1,78 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import Link from "next/link"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import Link from "next/link";
 
 export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-  })
-  const [error, setError] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  });
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { login } = useAuth()
-  const router = useRouter()
+  const { login } = useAuth();
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
 
     try {
-      await login(formData.email, formData.password)
-      router.push("/dashboard")
+      await login(formData.email, formData.password);
+      router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message || "Login failed")
+      setError(err.message || "Login failed");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
+          >
             <span>←</span>
             Back to Home
           </Link>
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-lg ministry-gradient flex items-center justify-center">
-              <span className="text-white font-bold text-xl">C</span>
+            <div className="w-24 h-24 rounded-lg ministry-gradient">
+              <img
+                src="/logo-cw.png"
+                alt="Church Logo"
+                className="w-full h-full rounded-lg object-cover"
+              />
             </div>
+
             <div className="text-left">
-              <h1 className="text-xl font-bold text-balance">Charisword Gospel Ministry</h1>
-              <p className="text-sm text-muted-foreground">Church Management System</p>
+              <h1 className="text-xl font-bold text-balance">
+                Charisword Gospel Ministry
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Church Management System
+              </p>
             </div>
           </div>
         </div>
@@ -62,7 +80,9 @@ export default function LoginPage() {
         <Card className="border-0 shadow-xl">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
-            <CardDescription>Sign in to access your ministry dashboard</CardDescription>
+            <CardDescription>
+              Sign in to access your ministry dashboard
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -73,7 +93,9 @@ export default function LoginPage() {
                   type="email"
                   placeholder="your.email@charisword.org"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
                   required
                 />
               </div>
@@ -86,7 +108,9 @@ export default function LoginPage() {
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
                     required
                   />
                   <Button
@@ -96,7 +120,9 @@ export default function LoginPage() {
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
                   >
-                    <span className="text-muted-foreground">{showPassword ? "🙈" : "👁️"}</span>
+                    <span className="text-muted-foreground">
+                      {showPassword ? "🙈" : "👁️"}
+                    </span>
                   </Button>
                 </div>
               </div>
@@ -107,7 +133,11 @@ export default function LoginPage() {
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
+              <Button
+                type="submit"
+                className="w-full bg-primary hover:bg-primary/90"
+                disabled={isLoading}
+              >
                 {isLoading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
@@ -147,10 +177,12 @@ export default function LoginPage() {
                 <p>finance1@charisword.org</p>
               </div>
             </div>
-            <p className="text-muted-foreground">Password: admin123 (for all demo accounts)</p>
+            <p className="text-muted-foreground">
+              Password: admin123 (for all demo accounts)
+            </p>
           </CardContent>
         </Card>
       </div>
     </div>
-  )
+  );
 }
