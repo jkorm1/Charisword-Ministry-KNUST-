@@ -62,39 +62,127 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
-    requireRole(["admin", "usher"])(user)
+    requireRole(["admin", "usher", "cell_leader"])(user)
 
-    const { full_name, gender, residence, phone, email, cell_id, fold_id, inviter_member_id, membership_status } =
-      await request.json()
+    const body = await request.json()
+    
+    // Check if it's a bulk operation
+    if (body.members && Array.isArray(body.members)) {
+      const connection = await pool.getConnection()
+      
+      try {
+        await connection.beginTransaction()
+        const results = []
 
-    if (!full_name || !gender) {
-      return NextResponse.json({ error: "Name and gender required" }, { status: 400 })
+        for (const memberData of body.members) {
+          let {
+            full_name,
+            gender,
+            residence,
+            phone,
+            email,
+            cell_id,
+            fold_id,
+            inviter_member_id,
+            membership_status
+          } = memberData
+
+          if (!full_name || !gender) {
+            await connection.rollback()
+            return NextResponse.json({ error: "Name and gender required for all members" }, { status: 400 })
+          }
+
+          // Cell leaders can only add members to their assigned cell
+          if (user?.role === "cell_leader") {
+            cell_id = user.assigned_cell_id
+          }
+
+          const [result] = await connection.execute(
+            `
+            INSERT INTO members (
+              full_name, gender, residence, phone, email, 
+              cell_id, fold_id, inviter_member_id, membership_status, date_joined
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            `,
+            [
+              full_name,
+              gender,
+              residence || null,
+              phone || null,
+              email || null,
+              cell_id || null,
+              fold_id || null,
+              inviter_member_id || null,
+              membership_status || "Member"
+            ]
+          )
+
+          results.push({
+            member_id: (result as any).insertId,
+            ...memberData
+          })
+        }
+
+        await connection.commit()
+
+        return NextResponse.json({
+          message: `${results.length} members created successfully`,
+          members: results
+        })
+      } catch (error) {
+        await connection.rollback()
+        throw error
+      } finally {
+        connection.release()
+      }
+    } else {
+      // Single member creation (existing logic)
+      let {
+        full_name,
+        gender,
+        residence,
+        phone,
+        email,
+        cell_id,
+        fold_id,
+        inviter_member_id,
+        membership_status
+      } = body
+
+      if (!full_name || !gender) {
+        return NextResponse.json({ error: "Name and gender required" }, { status: 400 })
+      }
+
+      // Cell leaders can only add members to their assigned cell
+      if (user?.role === "cell_leader") {
+        cell_id = user.assigned_cell_id
+      }
+
+      const [result] = await pool.execute(
+        `
+        INSERT INTO members (
+          full_name, gender, residence, phone, email, 
+          cell_id, fold_id, inviter_member_id, membership_status, date_joined
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `,
+        [
+          full_name,
+          gender,
+          residence || null,
+          phone || null,
+          email || null,
+          cell_id || null,
+          fold_id || null,
+          inviter_member_id || null,
+          membership_status || "Member"
+        ]
+      )
+
+      return NextResponse.json({
+        message: "Member created successfully",
+        member_id: (result as any).insertId
+      })
     }
-
-    const [result] = await pool.execute(
-      `
-      INSERT INTO members (
-        full_name, gender, residence, phone, email, 
-        cell_id, fold_id, inviter_member_id, membership_status, date_joined
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-    `,
-       [
-        full_name, 
-        gender, 
-        residence || null,  // Convert empty string to null
-        phone || null,      // Convert empty string to null
-        email || null,      // Convert empty string to null
-        cell_id || null,    // Already handled in frontend but double-check here
-        fold_id || null,    // Already handled in frontend but double-check here
-        inviter_member_id || null,  // Convert undefined to null
-        membership_status || "Member"
-      ],
-    )
-
-    return NextResponse.json({
-      message: "Member created successfully",
-      member_id: (result as any).insertId,
-    })
   } catch (error) {
     console.error("Create member error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

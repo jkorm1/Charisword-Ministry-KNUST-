@@ -63,7 +63,7 @@ function FinanceContent() {
 
 export default function FinancePage() {
   return (
-    <ProtectedRoute allowedRoles={["admin", "finance_leader"]}>
+    <ProtectedRoute allowedRoles={["admin", "finance_leader", "cell_leader"]}>
       <FinanceContent />
     </ProtectedRoute>
   );

@@ -49,7 +49,7 @@ interface DetailedAttendanceResponse {
 export async function GET(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
-    requireRole(["admin", "cell_leader"])(user)
+    requireRole(["admin", "usher", "cell_leader"])(user)
 
     const { searchParams } = new URL(request.url)
     const serviceId = searchParams.get("serviceId")
@@ -66,39 +66,46 @@ export async function GET(request: NextRequest) {
     const service = (serviceRows as any[])[0]
 
     // --- Get detailed attendance info ---
-const detailedQuery = `
-  WITH latest_attendance_status AS (
-    SELECT 
-      h.member_id,
-      h.service_id,
-      h.attendance_status,
-      h.member_status_at_time,
-      ROW_NUMBER() OVER (PARTITION BY h.member_id, h.service_id ORDER BY h.recorded_at DESC) as rn
-    FROM attendance_status_history h
-    WHERE h.service_id = ?
-  )
-  SELECT 
-    m.member_id,
-    m.full_name,
-    m.gender,
-    -- Ensure phone is always included for first-timers
-    CASE 
-      WHEN las.member_status_at_time = 'FirstTimer' THEN m.phone 
-      ELSE m.phone 
-    END as phone,
-    m.email,
-    m.membership_status,
-    c.name AS cell_name,
-    las.attendance_status,
-    las.member_status_at_time
-  FROM members m
-  JOIN latest_attendance_status las ON m.member_id = las.member_id AND las.rn = 1
-  LEFT JOIN cells c ON m.cell_id = c.cell_id
-  WHERE las.service_id = ?
-  ORDER BY las.member_status_at_time, las.attendance_status, m.full_name
-`
+  let detailedQuery = `
+      WITH latest_attendance_status AS (
+        SELECT 
+          h.member_id,
+          h.service_id,
+          h.attendance_status,
+          h.member_status_at_time,
+          ROW_NUMBER() OVER (PARTITION BY h.member_id, h.service_id ORDER BY h.recorded_at DESC) as rn
+        FROM attendance_status_history h
+        WHERE h.service_id = ?
+      )
+      SELECT 
+        m.member_id,
+        m.full_name,
+        m.gender,
+        CASE 
+          WHEN las.member_status_at_time = 'FirstTimer' THEN m.phone 
+          ELSE m.phone 
+        END as phone,
+        m.email,
+        m.membership_status,
+        c.name AS cell_name,
+        las.attendance_status,
+        las.member_status_at_time
+      FROM members m
+      JOIN latest_attendance_status las ON m.member_id = las.member_id AND las.rn = 1
+      LEFT JOIN cells c ON m.cell_id = c.cell_id
+      WHERE las.service_id = ?
+    `
 
-    const [memberRows] = await pool.execute(detailedQuery, [serviceId, serviceId])
+    const params = [serviceId, serviceId]
+
+    if (user?.role === "cell_leader") {
+      detailedQuery += " AND m.cell_id = ?"
+      params.push(user.assigned_cell_id)
+    }
+
+    detailedQuery += " ORDER BY las.member_status_at_time, las.attendance_status, m.full_name"
+
+    const [memberRows] = await pool.execute(detailedQuery, params)
 
     // --- Get summary statistics ---
     const summaryQuery = `

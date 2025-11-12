@@ -58,11 +58,11 @@ export default function LoginPage() {
             Back to Home
           </Link>
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-24 h-24 rounded-lg ministry-gradient">
+            <div className="w-12 h-12 rounded-full bg-black flex items-center justify-center">
               <img
-                src="/logo-cw.png"
-                alt="Church Logo"
-                className="w-full h-full rounded-lg object-cover"
+                src="/Logo-cw.png"
+                alt="Charisword Gospel Ministry"
+                className="w-8 h-8 object-contain"
               />
             </div>
 

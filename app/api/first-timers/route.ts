@@ -5,7 +5,7 @@ import { getUserFromRequest, requireRole } from "@/lib/auth"
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
-    requireRole(["admin", "usher"])(user)
+    requireRole(["admin", "usher", "cell_leader"])(user)
 
     const { service_id, first_timers } = await request.json()
 
@@ -39,10 +39,15 @@ export async function POST(request: NextRequest) {
           [full_name, gender, residence, phone, email, inviter_member_id, service_id, firstTimer.status],
         )
 
-        const [inviterInfo] = await connection.execute(
-          "SELECT cell_id FROM members WHERE member_id = ?",
-          [inviter_member_id]
-        );
+        // In the POST method, when fetching inviter info
+const [inviterInfo] = await connection.execute(
+  "SELECT cell_id FROM members WHERE member_id = ?" + 
+  (user?.role === "cell_leader" ? " AND cell_id = ?" : ""),
+  user?.role === "cell_leader" 
+    ? [inviter_member_id, user.assigned_cell_id]
+    : [inviter_member_id]
+);
+
 
         const inviterCellId = (inviterInfo as any[])[0]?.cell_id;
 

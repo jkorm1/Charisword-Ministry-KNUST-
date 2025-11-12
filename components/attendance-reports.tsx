@@ -90,11 +90,15 @@ export function AttendanceReports({
 
   const fetchServices = async () => {
     try {
-      const response = await fetch("/api/services");
+      const response = await fetch("/api/reports/attendance");
       if (response.ok) {
         const data = await response.json();
-        // Format the dates properly
-        const formattedServices = data.map((service) => ({
+        // Only process services that have attendance data
+        const servicesWithData = data.filter(
+          (service) => service.has_attendance
+        );
+
+        const formattedServices = servicesWithData.map((service) => ({
           ...service,
           formatted_date: new Date(service.service_date).toLocaleDateString(
             "en-US",

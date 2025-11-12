@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
-    requireRole(["admin", "finance_leader"])(user)
+    requireRole(["admin", "finance_leader", "cell_leader"])(user)
 
     const { searchParams } = new URL(request.url)
     const from = searchParams.get("from")
@@ -164,6 +164,13 @@ export async function GET(request: NextRequest) {
       query += " AND m.cell_id = ?"
       params.push(cellId)
     }
+
+    // In the GET method, add cell filter for cell leaders
+if (user?.role === "cell_leader" && user.assigned_cell_id) {
+  query += " AND m.cell_id = ?"
+  params.push(user.assigned_cell_id)
+}
+
 
     query += " ORDER BY total_partnerships DESC, m.full_name ASC"
 
