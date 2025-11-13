@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   
   try {
     const user = await getUserFromRequest(request);
-    requireRole(["admin", "finance_leader"])(user);
+    requireRole(["admin", "finance_leader", "cell_leader"])(user);
 
     const [rows] = await pool.execute(
       `SELECT * FROM programs ORDER BY program_date DESC`
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request);
-    requireRole(["admin", "finance_leader"])(user);
+    requireRole(["admin", "finance_leader", "cell_leader"])(user);
 
     const paymentData = await request.json();
     console.log("Creating payment:", paymentData);
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request);
-    requireRole(["admin", "finance_leader"])(user);
+    requireRole(["admin", "finance_leader", "cell_leader"])(user);
 
     const { payment_id, ...paymentData } = await request.json();
     console.log("Updating payment:", payment_id, paymentData);

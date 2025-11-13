@@ -108,27 +108,37 @@ export async function GET(request: NextRequest) {
     const [memberRows] = await pool.execute(detailedQuery, params)
 
     // --- Get summary statistics ---
-    const summaryQuery = `
-      WITH latest_attendance_status AS (
-        SELECT 
-          h.member_id,
-          h.service_id,
-          h.attendance_status,
-          h.member_status_at_time,
-          ROW_NUMBER() OVER (PARTITION BY h.member_id, h.service_id ORDER BY h.recorded_at DESC) as rn
-        FROM attendance_status_history h
-        WHERE h.service_id = ?
-      )
-      SELECT 
-        member_status_at_time,
-        attendance_status,
-        COUNT(DISTINCT member_id) AS count
-      FROM latest_attendance_status
-      WHERE rn = 1
-      GROUP BY member_status_at_time, attendance_status
-    `
-    const [summaryRows] = await pool.execute(summaryQuery, [serviceId])
 
+  const summaryQuery = `
+  WITH latest_attendance_status AS (
+    SELECT 
+      h.member_id,
+      h.service_id,
+      h.attendance_status,
+      h.member_status_at_time,
+      ROW_NUMBER() OVER (PARTITION BY h.member_id, h.service_id ORDER BY h.recorded_at DESC) as rn
+    FROM attendance_status_history h
+    WHERE h.service_id = ?
+  )
+  SELECT 
+    las.member_status_at_time,
+    las.attendance_status,
+    COUNT(DISTINCT m.member_id) AS count
+  FROM latest_attendance_status las
+  JOIN members m ON m.member_id = las.member_id
+  WHERE las.rn = 1
+  AND m.membership_status IN ('Member', 'Associate')
+  ${user?.role === "cell_leader" ? "AND m.cell_id = ?" : ""}
+  GROUP BY las.member_status_at_time, las.attendance_status
+`
+
+
+const summaryParams = [serviceId]
+if (user?.role === "cell_leader") {
+  summaryParams.push(user.assigned_cell_id)
+}
+
+const [summaryRows] = await pool.execute(summaryQuery, summaryParams)
     // --- Build summary object ---
     const summary: AttendanceSummary = {
       members: { present: 0, absent: 0 },

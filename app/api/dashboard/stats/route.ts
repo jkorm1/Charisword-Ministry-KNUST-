@@ -38,31 +38,51 @@ export async function GET(request: NextRequest) {
       cellParam
     )
 
-    // --- First-timers (global) ---
-    const [firstTimers] = await pool.execute(`
-      SELECT COUNT(*) as total 
-      FROM first_timers 
-      WHERE status IN ('Visit', 'Stay')
-    `)
+  // Add cell filter for first-timers as well
+const [firstTimers] = await pool.execute(`
+  SELECT COUNT(*) as total 
+  FROM first_timers ft
+  LEFT JOIN members m ON ft.inviter_member_id = m.member_id
+  WHERE ft.status IN ('Visit', 'Stay')
+  ${cellFilter}
+`, cellParam)
 
-    // --- Last service attendance ---
-    const [lastService] = await pool.execute(
-      `
-      SELECT 
-        s.service_id,
-        DATE_FORMAT(s.service_date, '%m/%d/%Y') as service_date,
-        COUNT(DISTINCT CASE WHEN a.status = 'Present' THEN a.member_id END) as attendance_count
-      FROM services s
-      LEFT JOIN attendance a ON s.service_id = a.service_id
-      LEFT JOIN members m ON a.member_id = m.member_id
-      WHERE s.service_date <= CURRENT_DATE
-      ${cellFilter}
-      GROUP BY s.service_id, s.service_date
-      ORDER BY s.service_date DESC
-      LIMIT 1
-      `,
-      cellParam
+
+// --- Last service attendance ---
+const [lastService] = await pool.execute(
+  `
+  SELECT 
+    s.service_id,
+    DATE_FORMAT(s.service_date, '%m/%d/%Y') as service_date,
+    COUNT(DISTINCT a.member_id) as attendance_count
+  FROM services s
+  LEFT JOIN attendance a ON s.service_id = a.service_id
+  LEFT JOIN members m ON a.member_id = m.member_id
+  WHERE s.service_date = (
+    SELECT MAX(service_date) 
+    FROM services 
+    
+  )
+  AND a.status = 'Present'
+  ${isCellLeader ? `
+    AND (
+      m.cell_id = ? OR -- Regular members in the cell
+      m.cell_id IS NULL OR -- Non-members
+      EXISTS ( -- First-timers whose inviter is in the cell
+        SELECT 1 
+        FROM first_timers ft 
+        JOIN members inviter ON ft.inviter_member_id = inviter.member_id 
+        WHERE ft.first_timer_id = a.member_id 
+        AND inviter.cell_id = ?
+      )
     )
+  ` : ''}
+  GROUP BY s.service_id, s.service_date
+  `,
+  isCellLeader ? [user.assigned_cell_id, user.assigned_cell_id] : []
+)
+
+
 
     // --- Recent activities ---
     const [services] = await pool.execute(`

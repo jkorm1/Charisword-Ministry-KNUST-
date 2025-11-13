@@ -8,8 +8,13 @@ import { PaymentFormNew } from "@/components/payment-form-new";
 import { FinanceReports } from "@/components/finance-reports";
 import { PaymentReports } from "@/components/payment-reports";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/use-auth";
 
 function FinanceContent() {
+  const { user } = useAuth(); // Add this line
+  const isAdminOrFinance =
+    user?.role === "admin" || user?.role === "finance_leader";
+
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
@@ -24,8 +29,12 @@ function FinanceContent() {
       <Tabs defaultValue="partnerships" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto">
           <TabsTrigger value="partnerships">Partnerships</TabsTrigger>
-          <TabsTrigger value="offerings">Offerings</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
+          {isAdminOrFinance && (
+            <TabsTrigger value="offerings">Offerings</TabsTrigger>
+          )}
+          {isAdminOrFinance && (
+            <TabsTrigger value="payments">Payments</TabsTrigger>
+          )}
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
 

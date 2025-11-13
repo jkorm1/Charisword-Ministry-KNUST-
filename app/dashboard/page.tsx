@@ -48,7 +48,11 @@ function DashboardContent() {
 
   const fetchCellStats = async () => {
     try {
-      const response = await fetch("/api/cells");
+      const response = await fetch(
+        user?.role === "cell_leader"
+          ? `/api/cells?cellId=${user.assigned_cell_id}`
+          : "/api/cells"
+      );
       if (response.ok) {
         const data = await response.json();
         setCellStats(data);
@@ -236,7 +240,7 @@ function DashboardContent() {
               <Card className="border-0 shadow-lg">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">
-                    Last Service
+                    Recent Service Attendance
                   </CardTitle>
                   <Church className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
@@ -331,7 +335,7 @@ function DashboardContent() {
                         <div key={index} className="flex justify-between">
                           <span>{cell.name}</span>
                           <span className="text-muted-foreground">
-                            {cell.member_count} members
+                            {cell.member_count} Members & Associates
                           </span>
                         </div>
                       ))}

@@ -23,12 +23,17 @@ interface PartnershipReport {
 export async function GET(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
-    requireRole(["admin", "finance_leader"])(user)
+    requireRole(["admin", "finance_leader", "cell_leader"])(user)
 
     const { searchParams } = new URL(request.url)
     const from = searchParams.get("from")
     const to = searchParams.get("to")
-    const cellId = searchParams.get("cellId")
+    let cellId = searchParams.get("cellId")
+
+     if (user.role === "cell_leader" && !cellId) {
+      cellId = user.assigned_cell_id?.toString()
+    }
+
 
     // Get all members with their partnership details
     let membersQuery = `
@@ -113,7 +118,6 @@ export async function GET(request: NextRequest) {
       FROM partnerships 
       WHERE member_id IS NULL
     `
-
     const nonMembersParams: any[] = []
 
     if (from) {

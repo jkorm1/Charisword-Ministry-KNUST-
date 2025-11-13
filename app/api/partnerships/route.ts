@@ -21,7 +21,7 @@ interface ProcessedRow {
 export async function POST(request: NextRequest) {
   try {
     const user = await getUserFromRequest(request)
-    requireRole(["admin", "finance_leader"])(user)
+    requireRole(["admin", "finance_leader", "cell_leader"])(user)
 
     const { 
       member_id, 

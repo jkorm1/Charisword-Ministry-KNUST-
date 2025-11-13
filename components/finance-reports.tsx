@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 
 interface PartnershipDetail {
   amount: number;
@@ -97,6 +98,7 @@ interface PaymentSummary {
 }
 
 export function FinanceReports() {
+  const { user } = useAuth();
   const [reports, setReports] = useState<MemberReport[]>([]);
   const [offeringReports, setOfferingReports] = useState<OfferingReport[]>([]);
   const [paymentReports, setPaymentReports] = useState<PaymentReport[]>([]);
@@ -228,11 +230,12 @@ export function FinanceReports() {
   };
 
   // Fix: Updated toggleRow function to work with an object instead of a Set
-  const toggleRow = (memberId: number) => {
-    setExpandedRows((prev) => ({
-      ...prev,
-      [memberId]: !prev[memberId],
-    }));
+  const toggleRow = (memberId: number | string) => {
+    setExpandedRows((prev) => {
+      const newState = { ...prev };
+      newState[memberId] = !newState[memberId];
+      return newState;
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -334,17 +337,20 @@ export function FinanceReports() {
   useEffect(() => {
     fetchCells();
     fetchReports();
-    fetchOfferingReports();
-    fetchPaymentReports();
-    fetchFilterOptions();
+    // Only fetch offering and payment reports if user is admin or finance_leader
+    if (user?.role === "admin" || user?.role === "finance_leader") {
+      fetchOfferingReports();
+      fetchPaymentReports();
+      fetchFilterOptions();
+    }
   }, [
     selectedCell,
     dateFrom,
     dateTo,
     activeTab,
     selectedCategory,
-    selectedService, // Changed from selectedProgram
-    selectedReferenceType, // Added this dependency
+    selectedService,
+    selectedReferenceType,
   ]);
 
   return (
@@ -470,19 +476,24 @@ export function FinanceReports() {
             >
               Partnership Reports
             </Button>
-            <Button
-              variant={activeTab === "offerings" ? "default" : "outline"}
-              onClick={() => setActiveTab("offerings")}
-            >
-              Offering Reports
-            </Button>
-            <Button
-              variant={activeTab === "payments" ? "default" : "outline"}
-              onClick={() => setActiveTab("payments")}
-            >
-              Payment Reports
-            </Button>
+            {(user?.role === "admin" || user?.role === "finance_leader") && (
+              <>
+                <Button
+                  variant={activeTab === "offerings" ? "default" : "outline"}
+                  onClick={() => setActiveTab("offerings")}
+                >
+                  Offering Reports
+                </Button>
+                <Button
+                  variant={activeTab === "payments" ? "default" : "outline"}
+                  onClick={() => setActiveTab("payments")}
+                >
+                  Payment Reports
+                </Button>
+              </>
+            )}
           </div>
+
           {activeTab === "partnerships" && (
             <div className="mt-4 p-4 bg-gray-50 rounded-lg">
               <p className="text-lg font-semibold">
@@ -605,7 +616,9 @@ export function FinanceReports() {
               </TableHeader>
               <TableBody>
                 {reports.map((report, index) => (
-                  <React.Fragment key={report.member_id}>
+                  <React.Fragment
+                    key={report.member_id || `non-member-${index}`}
+                  >
                     <TableRow>
                       <TableCell>{index + 1}</TableCell>
                       <TableCell>{report.full_name}</TableCell>
@@ -622,14 +635,18 @@ export function FinanceReports() {
                       <TableCell>
                         <Button
                           variant="ghost"
-                          onClick={() => toggleRow(report.member_id)}
+                          onClick={() =>
+                            toggleRow(report.member_id || `non-member-${index}`)
+                          }
                         >
                           {expandedRows[report.member_id] ? "▲" : "▼"}
                         </Button>
                       </TableCell>
                     </TableRow>
-                    {/* Fix: Updated condition to check the object property */}
-                    {expandedRows[report.member_id] && (
+                    {expandedRows[
+                      report.member_id || `non-member-${index}`
+                    ] && (
+                      // Use the single expanded state
                       <TableRow>
                         <TableCell colSpan={7}>
                           <div className="p-4 bg-gray-50">
