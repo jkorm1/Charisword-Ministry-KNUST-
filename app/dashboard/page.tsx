@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 import UserManagement from "@/components/UserManagement";
-
+import { User } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
@@ -137,6 +137,11 @@ function DashboardContent() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/profile">
+                  <User className="w-5 h-5" />
+                </Link>
+              </Button>
               <Badge variant="secondary">
                 {getRoleDisplay(user?.role || "")}
               </Badge>
