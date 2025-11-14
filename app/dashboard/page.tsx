@@ -21,6 +21,9 @@ import {
   LogOut,
   DollarSign,
 } from "lucide-react";
+
+import UserManagement from "@/components/UserManagement";
+
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
@@ -165,6 +168,17 @@ function DashboardContent() {
               Attendance
             </Button>
           )}
+
+          {canAccessFinance && (
+            <Button
+              variant={activeTab === "finance" ? "default" : "ghost"}
+              onClick={() => setActiveTab("finance")}
+              className="justify-start"
+            >
+              Finance
+            </Button>
+          )}
+
           {user?.role === "admin" && (
             <Button
               variant={activeTab === "services" ? "default" : "ghost"}
@@ -174,13 +188,14 @@ function DashboardContent() {
               Services
             </Button>
           )}
-          {canAccessFinance && (
+
+          {user?.role === "admin" && (
             <Button
-              variant={activeTab === "finance" ? "default" : "ghost"}
-              onClick={() => setActiveTab("finance")}
+              variant={activeTab === "users" ? "default" : "ghost"}
+              onClick={() => setActiveTab("users")}
               className="justify-start"
             >
-              Finance
+              Users
             </Button>
           )}
         </div>
@@ -422,6 +437,9 @@ function DashboardContent() {
             </Card>
           </div>
         )}
+
+        {/* Users Tab Content */}
+        {user?.role === "admin" && activeTab === "users" && <UserManagement />}
       </div>
     </div>
   );
