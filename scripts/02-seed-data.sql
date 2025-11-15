@@ -1,6 +1,6 @@
 -- Seed data for Charisword Gospel Ministry
 
-USE chariswordKnust;
+USE railway;
 
 SET FOREIGN_KEY_CHECKS = 0;
 

@@ -2,9 +2,7 @@
 -- MySQL Database Setup
 
 -- Create database
-DROP DATABASE IF EXISTS chariswordKnust;
-CREATE DATABASE chariswordKnust;
-USE chariswordKnust;
+USE railway;
 
 
 -- Users table (system users: admin, usher, cell_leader, finance_leader)

@@ -17,15 +17,6 @@ ADD CONSTRAINT fk_partnerships_program
 FOREIGN KEY (program_id) REFERENCES programs(program_id)
 ON DELETE SET NULL;
 
--- Add check constraint to ensure only one of service_id or program_id is set
-ALTER TABLE partnerships
-ADD CONSTRAINT chk_partnership_type
-CHECK (
-    (service_id IS NULL AND program_id IS NULL) OR  -- Normal day
-    (service_id IS NOT NULL AND program_id IS NULL) OR  -- Service
-    (service_id IS NULL AND program_id IS NOT NULL)  -- Program
-);
-
 -- Create indexes for better performance
 CREATE INDEX idx_partnerships_service ON partnerships(service_id);
 CREATE INDEX idx_partnerships_program ON partnerships(program_id);
