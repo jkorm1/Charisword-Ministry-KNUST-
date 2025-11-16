@@ -1,26 +1,25 @@
--- Seed data for Charisword Gospel Ministry
+-- File: merged-scripts/03-seed-data.sql
 
 USE railway;
 
 SET FOREIGN_KEY_CHECKS = 0;
 
--- Clear existing data
 DELETE FROM attendance_status_history;
 DELETE FROM service_expected_attendance;
+DELETE FROM audit_logs;
+DELETE FROM payments;
+DELETE FROM recurring_expenses;
+DELETE FROM programs;
 DELETE FROM attendance;
 DELETE FROM offerings;
 DELETE FROM partnerships;
 DELETE FROM services;
-DELETE FROM programs;
-DELETE FROM payments;
-DELETE FROM recurring_expenses;
 DELETE FROM first_timers;
 DELETE FROM members;
 DELETE FROM users;
 DELETE FROM folds;
 DELETE FROM cells;
 
--- Reset AUTO_INCREMENT counters
 ALTER TABLE cells AUTO_INCREMENT = 1;
 ALTER TABLE folds AUTO_INCREMENT = 1;
 ALTER TABLE users AUTO_INCREMENT = 1;
@@ -30,104 +29,156 @@ ALTER TABLE attendance AUTO_INCREMENT = 1;
 ALTER TABLE partnerships AUTO_INCREMENT = 1;
 ALTER TABLE offerings AUTO_INCREMENT = 1;
 ALTER TABLE programs AUTO_INCREMENT = 1;
+ALTER TABLE payments AUTO_INCREMENT = 1;
+ALTER TABLE recurring_expenses AUTO_INCREMENT = 1;
 
 SET FOREIGN_KEY_CHECKS = 1;
 
 START TRANSACTION;
 
--- ==================== INSERT CELLS ====================
-INSERT INTO cells (name, description) VALUES 
-  ('Zoe Cell', 'Life-giving cell focused on spiritual growth'),
-  ('Shiloh Cell', 'Peaceful cell emphasizing community'),
-  ('Makarios Cell', 'Blessed cell for fellowship'),
-  ('Integrity Cell', 'Cell focused on character building'),
-  ('Epignosis Cell', 'Knowledge-seeking cell for deeper understanding'),
-  ('Dunamis Cell', 'Power cell for spiritual empowerment');
+-- Insert Cells
+INSERT INTO cells (name, description) VALUES
+('Zoe Cell', 'Life-giving cell focused on spiritual growth'),
+('Shiloh Cell', 'Peaceful cell emphasizing community'),
+('Makarios Cell', 'Blessed cell for fellowship'),
+('Integrity Cell', 'Cell focused on character building'),
+('Epignosis Cell', 'Knowledge-seeking cell for deeper understanding'),
+('Dunamis Cell', 'Power cell for spiritual empowerment');
 
--- ==================== INSERT FOLDS ====================
-INSERT INTO folds (cell_id, name, description) VALUES 
-  -- Zoe Cell folds
-  (1, 'Poiema Fold', 'Creative works fold'),
-  (1, 'Love Fold', 'Love-centered fold'),
-  (1, 'Wise Fold', 'Wisdom-seeking fold'),
-  -- Shiloh Cell folds
-  (2, 'Peace Fold', 'Peace-building fold'),
-  (2, 'Unity Fold', 'Unity-focused fold'),
-  (2, 'Harmony Fold', 'Harmonious fellowship fold'),
-  -- Makarios Cell folds
-  (3, 'Blessed Fold', 'Blessing-focused fold'),
-  (3, 'Favor Fold', 'Divine favor fold'),
-  (3, 'Grace Fold', 'Grace-centered fold'),
-  -- Integrity Cell folds
-  (4, 'Truth Fold', 'Truth-seeking fold'),
-  (4, 'Honor Fold', 'Honor-focused fold'),
-  (4, 'Virtue Fold', 'Virtue-building fold'),
-  -- Epignosis Cell folds
-  (5, 'Wisdom Fold', 'Wisdom-seeking fold'),
-  (5, 'Knowledge Fold', 'Knowledge-building fold'),
-  (5, 'Understanding Fold', 'Understanding-focused fold'),
-  -- Dunamis Cell folds
-  (6, 'Power Fold', 'Power-centered fold'),
-  (6, 'Breakthrough Fold', 'Breakthrough-focused fold'),
-  (6, 'Victory Fold', 'Victory-celebrating fold');
+-- Insert Folds for each cell (3 folds per cell as specified)
+INSERT INTO folds (cell_id, name, description) VALUES
+-- Zoe Cell folds
+(1, 'Poiema Fold', 'Creative works fold'),
+(1, 'Love Fold', 'Love-centered fold'),
+(1, 'Wise Fold', 'Wisdom-seeking fold'),
+-- Shiloh Cell folds
+(2, 'Peace Fold', 'Peace-building fold'),
+(2, 'Unity Fold', 'Unity-focused fold'),
+(2, 'Harmony Fold', 'Harmonious fellowship fold'),
+-- Makarios Cell folds
+(3, 'Blessed Fold', 'Blessing-focused fold'),
+(3, 'Favor Fold', 'Divine favor fold'),
+(3, 'Grace Fold', 'Grace-centered fold'),
+-- Integrity Cell folds
+(4, 'Truth Fold', 'Truth-seeking fold'),
+(4, 'Honor Fold', 'Honor-focused fold'),
+(4, 'Virtue Fold', 'Virtue-building fold'),
+-- Epignosis Cell folds
+(5, 'Wisdom Fold', 'Wisdom-seeking fold'),
+(5, 'Knowledge Fold', 'Knowledge-building fold'),
+(5, 'Understanding Fold', 'Understanding-focused fold'),
+-- Dunamis Cell folds
+(6, 'Power Fold', 'Spiritual power fold'),
+(6, 'Strength Fold', 'Strength-building fold'),
+(6, 'Victory Fold', 'Victory-focused fold');
 
--- ==================== INSERT USERS ====================
-INSERT INTO users (email, password_hash, role, assigned_cell_id) VALUES 
-  ('admin@charisword.org', 'hashed_password_123', 'admin', NULL),
-  ('usher@charisword.org', 'hashed_password_456', 'usher', 1),
-  ('cell_leader@charisword.org', 'hashed_password_789', 'cell_leader', 2),
-  ('finance@charisword.org', 'hashed_password_101', 'finance_leader', NULL);
+-- Insert Admin User (password: admin123 - should be hashed in production)
+INSERT INTO users (email, password_hash, role) VALUES
+('admin@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'admin');
 
--- ==================== INSERT MEMBERS ====================
-INSERT INTO members (full_name, gender, residence, phone, email, cell_id, fold_id, membership_status, date_joined) VALUES 
-  ('John Doe', 'Male', 'Kumasi', '0501234567', 'john@example.com', 1, 1, 'Member', '2024-01-15'),
-  ('Jane Smith', 'Female', 'Kumasi', '0501234568', 'jane@example.com', 1, 2, 'Member', '2024-01-20'),
-  ('Samuel Kwesi', 'Male', 'Accra', '0501234569', 'samuel@example.com', 2, 4, 'Associate', '2024-02-10'),
-  ('Abena Mensah', 'Female', 'Kumasi', '0501234570', 'abena@example.com', 1, 1, 'Member', '2024-02-15'),
-  ('David Osei', 'Male', 'Kumasi', '0501234571', 'david@example.com', 2, 5, 'Member', '2024-03-01'),
-  ('Grace Anane', 'Female', 'Accra', '0501234572', 'grace@example.com', 3, 7, 'FirstTimer', '2024-03-15');
+-- Insert sample ushers
+INSERT INTO users (email, password_hash, role) VALUES
+('usher1@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'usher'),
+('usher2@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'usher');
 
--- ==================== INSERT FIRST TIMERS ====================
-INSERT INTO first_timers (member_id, invited_by_member_id, first_timer_comment) VALUES 
-  (6, 1, 'Very welcoming community');
+-- Insert cell leaders (one for each cell)
+INSERT INTO users (email, password_hash, role, assigned_cell_id) VALUES
+('zoe.leader@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'cell_leader', 1),
+('shiloh.leader@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'cell_leader', 2),
+('makarios.leader@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'cell_leader', 3),
+('integrity.leader@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'cell_leader', 4),
+('epignosis.leader@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'cell_leader', 5),
+('dunamis.leader@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'cell_leader', 6);
+    
+-- Insert finance leaders
+INSERT INTO users (email, password_hash, role) VALUES
+('finance1@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'finance_leader'),
+('finance2@charisword.org', '$2b$12$71TD3cbdj4KdrYZ86pFHX.S0oK9R.yPGfYXSF1RO34WPYzEwDP.Ki', 'finance_leader');
 
--- ==================== INSERT SERVICES ====================
-INSERT INTO services (service_date, service_time, service_type, venue, speaker, topic) VALUES 
-  ('2024-03-17', '9:00 AM', 'Sunday Service', 'KNUST Auditorium', 'Pastor John', 'Faith and Trust'),
-  ('2024-03-24', '9:00 AM', 'Sunday Service', 'KNUST Auditorium', 'Pastor Jane', 'Grace and Mercy'),
-  ('2024-03-31', '9:00 AM', 'Sunday Service', 'KNUST Auditorium', 'Pastor Samuel', 'Love and Compassion');
+-- Insert Members (sample from the provided list)
+INSERT INTO members (full_name, gender, residence, phone, email, cell_id, fold_id, membership_status, date_joined) VALUES
+('Min. Victus Kwaku', 'Male', 'KNUST Campus', '0261169859', 'victus@charisword.org', 1, 1, 'Member', '2023-01-15'),
+('Min. Joshua Lamptey', 'Male', 'KNUST Campus', '0241234567', 'joshua@charisword.org', 1, 2, 'Member', '2023-02-10'),
+('Min. Eugenia Nsaako', 'Female', 'KNUST Campus', '0551234567', 'eugenia@charisword.org', 2, 4, 'Member', '2023-01-20'),
+('Min. Richmond', 'Male', 'KNUST Campus', '0201234567', 'richmond@charisword.org', 2, 5, 'Member', '2023-03-05'),
+('Min. Ekow', 'Male', 'KNUST Campus', '0271234567', 'ekow@charisword.org', 3, 7, 'Member', '2023-02-15'),
+('Min. Faustinus Deckor', 'Male', 'KNUST Campus', '0231234567', 'faustinus@charisword.org', 3, 8, 'Member', '2023-01-30'),
+('Min. Kingsley Osei Bonsu', 'Male', 'KNUST Campus', '0501234567', 'kingsley@charisword.org', 4, 10, 'Member', '2023-02-20'),
+('Min. MaryAnn', 'Female', 'KNUST Campus', '0541234567', 'maryann@charisword.org', 4, 11, 'Member', '2023-03-10'),
+('Min. Alvina', 'Female', 'KNUST Campus', '0261234567', 'alvina@charisword.org', 5, 13, 'Member', '2023-01-25'),
+('Min. Dorothy', 'Female', 'KNUST Campus', '0281234567', 'dorothy@charisword.org', 5, 14, 'Member', '2023-02-28'),
+('Min. Harriet Adisenu', 'Female', 'KNUST Campus', '0211234567', 'harriet@charisword.org', 6, 16, 'Member', '2023-03-15'),
+('Min. Pearl Dogli', 'Female', 'KNUST Campus', '0251234567', 'pearl@charisword.org', 6, 17, 'Member', '2023-01-10'),
+('Min. Livingstone Sabah', 'Male', 'KNUST Campus', '0571234567', 'livingstone@charisword.org', 1, 3, 'Member', '2023-02-05'),
+('Min. Eunice Betty Osei', 'Female', 'KNUST Campus', '0291234567', 'eunice@charisword.org', 2, 6, 'Member', '2023-03-20'),
+('Min. Nana Yaw Amponsah', 'Male', 'KNUST Campus', '0221234567', 'nanayaw@charisword.org', 3, 9, 'Member', '2023-01-05');
 
--- ==================== INSERT ATTENDANCE ====================
-INSERT INTO attendance (service_id, member_id, attendance_status, member_status_at_time) VALUES 
-  (1, 1, 'Present', 'Member'),
-  (1, 2, 'Present', 'Member'),
-  (1, 3, 'Absent', 'Associate'),
-  (2, 1, 'Present', 'Member'),
-  (2, 2, 'Absent', 'Member'),
-  (2, 4, 'Present', 'Member'),
-  (3, 1, 'Present', 'Member'),
-  (3, 5, 'Present', 'Member'),
-  (3, 6, 'Present', 'FirstTimer');
+-- Generate services for the year (Sundays and Tuesdays)
+INSERT INTO services (service_date, service_type, created_by_user_id)
+SELECT 
+    DATE_ADD(CURRENT_DATE, INTERVAL seq DAY) as service_date,
+    CASE DAYOFWEEK(DATE_ADD(CURRENT_DATE, INTERVAL seq DAY))
+        WHEN 1 THEN 'Supergathering'  -- Sunday
+        WHEN 3 THEN 'Midweek'         -- Tuesday
+        ELSE NULL
+    END as service_type,
+    1 as created_by_user_id
+FROM (
+    SELECT 0 as seq UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4
+    UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9
+    UNION SELECT 10 UNION SELECT 11 UNION SELECT 12 UNION SELECT 13 UNION SELECT 14
+    UNION SELECT 15 UNION SELECT 16 UNION SELECT 17 UNION SELECT 18 UNION SELECT 19
+    UNION SELECT 20 UNION SELECT 21 UNION SELECT 22 UNION SELECT 23 UNION SELECT 24
+    UNION SELECT 25 UNION SELECT 26 UNION SELECT 27 UNION SELECT 28 UNION SELECT 29
+    UNION SELECT 30
+) as seq
+WHERE 
+    DATE_ADD(CURRENT_DATE, INTERVAL seq DAY) <= DATE_FORMAT(CURRENT_DATE, '%Y-12-31')
+    AND DAYOFWEEK(DATE_ADD(CURRENT_DATE, INTERVAL seq DAY)) IN (1, 3);  -- Sunday (1) and Tuesday (3)
 
--- ==================== INSERT OFFERINGS ====================
-INSERT INTO offerings (service_id, member_id, amount, offering_date, offering_type) VALUES 
-  (1, 1, 100.00, '2024-03-17', 'Tithe'),
-  (1, 2, 50.00, '2024-03-17', 'General Offering'),
-  (2, 1, 100.00, '2024-03-24', 'Tithe'),
-  (2, 4, 75.00, '2024-03-24', 'Special Offering'),
-  (3, 1, 100.00, '2024-03-31', 'Tithe'),
-  (3, 5, 50.00, '2024-03-31', 'General Offering');
+-- Insert sample attendance records
+INSERT INTO attendance (service_id, member_id, status, recorded_by_user_id) VALUES
+-- Service 1 attendance
+(1, 1, 'Present', 2),
+(1, 2, 'Present', 2),
+(1, 3, 'Present', 2),
+(1, 4, 'Absent', 2),
+(1, 5, 'Present', 2),
+-- Service 2 attendance
+(2, 1, 'Present', 2),
+(2, 2, 'Absent', 2),
+(2, 3, 'Present', 2),
+(2, 4, 'Present', 2),
+(2, 5, 'Present', 2);
 
--- ==================== INSERT PROGRAMS ====================
-INSERT INTO programs (program_name, program_date, description) VALUES 
-  ('Youth Retreat', '2024-04-15', 'Annual youth retreat and fellowship'),
-  ('Prayer Conference', '2024-05-20', 'Spiritual empowerment conference'),
-  ('Missions Outreach', '2024-06-10', 'Community outreach program');
+-- Insert sample partnerships
+INSERT INTO partnerships (member_id, partner_name, amount, date_given, recorded_by_user_id) VALUES
+(1, 'Min. Victus Kwaku', 500.00, '2024-01-01', 9),
+(2, 'Min. Joshua Lamptey', 300.00, '2024-01-01', 9),
+(3, 'Min. Eugenia Nsaako', 250.00, '2024-01-15', 9),
+(5, 'Min. Ekow', 400.00, '2024-01-20', 9);
 
--- ==================== INSERT PARTNERSHIPS ====================
-INSERT INTO partnerships (member_id, date_given, amount, partnership_type, description) VALUES 
-  (1, '2024-03-17', 500.00, 'Monthly Partnership', 'Regular monthly partnership'),
-  (2, '2024-03-17', 250.00, 'Quarterly Partnership', 'Quarterly partnership commitment'),
-  (4, '2024-03-24', 300.00, 'Project-based', 'Support for youth program');
+-- Insert sample offerings
+INSERT INTO offerings (service_id, amount, recorded_by_user_id, date_recorded) VALUES
+(1, 1250.00, 9, '2024-01-07'),
+(2, 850.00, 9, '2024-01-10'),
+(3, 1400.00, 9, '2024-01-14'),
+(4, 950.00, 9, '2024-01-17'),
+(5, 1600.00, 9, '2024-01-21');
+
+-- Insert sample programs
+INSERT INTO programs (program_name, program_date, description) VALUES
+('Youth Conference', '2024-02-15', 'Annual youth empowerment conference'),
+('Leadership Summit', '2024-03-20', 'Training for cell leaders and ushers'),
+('Community Outreach', '2024-04-10', 'Community service and evangelism event'),
+('End of Year Thanksgiving', '2024-12-31', 'Annual thanksgiving service');
+
+-- Insert sample payments
+INSERT INTO payments (amount, payment_date, payment_type, description, payment_category, reference_id, reference_type, recorded_by_user_id) VALUES
+(500.00, '2024-01-05', 'Expense', 'Sound system rental', 'service', 1, 'service', 9),
+(300.00, '2024-01-10', 'Expense', 'Transportation for outreach', 'program', 1, 'program', 9),
+(150.00, '2024-01-15', 'Expense', 'Security services', 'regular', NULL, NULL, 9),
+(200.00, '2024-01-20', 'Expense', 'Equipment maintenance', 'regular', NULL, NULL, 9),
+(400.00, '2024-02-15', 'Expense', 'Youth conference venue', 'program', 2, 'program', 9);
 
 COMMIT;

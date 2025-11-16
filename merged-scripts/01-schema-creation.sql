@@ -67,48 +67,54 @@ CREATE TABLE IF NOT EXISTS members (
 
 -- First timers table
 CREATE TABLE IF NOT EXISTS first_timers (
-  first_timer_id INT PRIMARY KEY AUTO_INCREMENT,
-  member_id INT NOT NULL,
-  invited_by_member_id INT,
-  first_timer_comment TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
-  FOREIGN KEY (invited_by_member_id) REFERENCES members(member_id) ON DELETE SET NULL,
-  INDEX idx_member_id (member_id)
+    first_timer_id INT PRIMARY KEY AUTO_INCREMENT,
+    full_name VARCHAR(255) NOT NULL,
+    gender ENUM('Male', 'Female') NOT NULL,
+    residence VARCHAR(255),
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    inviter_member_id INT NULL,
+    service_id INT NOT NULL,
+    status ENUM('Visit', 'Stay') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (inviter_member_id) REFERENCES members(member_id) ON DELETE SET NULL,
+    INDEX idx_service_id (service_id),
+    INDEX idx_status (status),
+    INDEX idx_phone (phone),
+    INDEX idx_email (email)
 );
 
 -- ==================== SERVICES & ATTENDANCE ====================
 
 -- Services table
 CREATE TABLE IF NOT EXISTS services (
-  service_id INT PRIMARY KEY AUTO_INCREMENT,
-  service_date DATE NOT NULL,
-  service_time VARCHAR(10),
-  service_type VARCHAR(100),
-  venue VARCHAR(255),
-  speaker VARCHAR(255),
-  topic VARCHAR(255),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_service_date (service_date),
-  INDEX idx_service_type (service_type)
+    service_id INT PRIMARY KEY AUTO_INCREMENT,
+    service_date DATE NOT NULL,
+    service_type ENUM('Supergathering', 'Midweek', 'Special') NOT NULL,
+    topic VARCHAR(255),
+    created_by_user_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by_user_id) REFERENCES users(user_id) ON DELETE RESTRICT,
+    INDEX idx_service_date (service_date),
+    INDEX idx_service_type (service_type),
+    INDEX idx_created_by (created_by_user_id)
 );
 
 -- Attendance table
 CREATE TABLE IF NOT EXISTS attendance (
   attendance_id INT PRIMARY KEY AUTO_INCREMENT,
-  service_id INT NOT NULL,
-  member_id INT NOT NULL,
-  attendance_status ENUM('Present', 'Absent') NOT NULL,
-  member_status_at_time ENUM('FirstTimer', 'Associate', 'Member') NOT NULL,
-  recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE CASCADE,
-  FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
-  INDEX idx_service_id (service_id),
-  INDEX idx_member_id (member_id),
-  INDEX idx_status (attendance_status),
-  UNIQUE KEY unique_attendance (service_id, member_id)
+    service_id INT NOT NULL,
+    member_id INT NOT NULL,
+    status ENUM('Present', 'Absent') NOT NULL,
+    recorded_by_user_id INT NOT NULL,
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE CASCADE,
+    FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
+    FOREIGN KEY (recorded_by_user_id) REFERENCES users(user_id) ON DELETE RESTRICT,
+    UNIQUE KEY unique_service_member (service_id, member_id),
+    INDEX idx_service_id (service_id),
+    INDEX idx_member_id (member_id),
+    INDEX idx_status (status)
 );
 
 -- Service expected attendance table (tracks expected attendance)
@@ -125,6 +131,7 @@ CREATE TABLE IF NOT EXISTS service_expected_attendance (
   INDEX idx_member_expected (member_id)
 );
 
+
 -- Attendance status history table
 CREATE TABLE IF NOT EXISTS attendance_status_history (
   history_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -134,9 +141,10 @@ CREATE TABLE IF NOT EXISTS attendance_status_history (
   attendance_status ENUM('Present', 'Absent') NOT NULL,
   member_status_at_time ENUM('FirstTimer', 'Associate', 'Member') NOT NULL,
   recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (attendance_id) REFERENCES attendance(attendance_id) ON DELETE CASCADE,
-  FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
-  FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE CASCADE,
+  previous_status ENUM('Present', 'Absent') NULL,
+  FOREIGN KEY (attendance_id) REFERENCES attendance(attendance_id),
+  FOREIGN KEY (member_id) REFERENCES members(member_id),
+  FOREIGN KEY (service_id) REFERENCES services(service_id),
   INDEX idx_member_service (member_id, service_id),
   INDEX idx_service_date (service_id, recorded_at)
 );
@@ -154,49 +162,83 @@ CREATE TABLE IF NOT EXISTS programs (
   INDEX idx_program_date (program_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+
 -- ==================== OFFERINGS ====================
 
 -- Offerings table
 CREATE TABLE IF NOT EXISTS offerings (
   offering_id INT PRIMARY KEY AUTO_INCREMENT,
-  service_id INT,
+  service_id INT NOT NULL,
   program_id INT NULL,
-  member_id INT,
   amount DECIMAL(10, 2) NOT NULL,
-  offering_date DATE NOT NULL,
-  offering_type VARCHAR(50),
+  recorded_by_user_id INT NOT NULL,
+  date_recorded DATE NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE SET NULL,
-  FOREIGN KEY (program_id) REFERENCES programs(program_id) ON DELETE SET NULL,
-  FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
+  FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE CASCADE,
+  FOREIGN KEY (recorded_by_user_id) REFERENCES users(user_id) ON DELETE RESTRICT,
   INDEX idx_service_id (service_id),
-  INDEX idx_member_id (member_id),
-  INDEX idx_offerings_program_id (program_id),
-  INDEX idx_offering_date (offering_date)
+  INDEX idx_program_id (program_id),
+  INDEX idx_date_recorded (date_recorded)
 );
+
+-- Add foreign key constraint for offerings
+ALTER TABLE offerings 
+ADD CONSTRAINT fk_offerings_program 
+FOREIGN KEY (program_id) 
+REFERENCES programs(program_id)
+ON DELETE SET NULL;
+
 
 -- ==================== PARTNERSHIPS ====================
 
 -- Partnerships table
 CREATE TABLE IF NOT EXISTS partnerships (
   partnership_id INT PRIMARY KEY AUTO_INCREMENT,
-  member_id INT NOT NULL,
-  date_given DATE NOT NULL,
+  member_id INT NULL,
+  partner_name VARCHAR(255) NOT NULL,
   amount DECIMAL(10, 2) NOT NULL,
-  partnership_type VARCHAR(100),
-  description TEXT,
+  date_given DATE NOT NULL,
+  recorded_by_user_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   service_id INT NULL,
   program_id INT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE CASCADE,
-  FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE SET NULL,
-  FOREIGN KEY (program_id) REFERENCES programs(program_id) ON DELETE SET NULL,
+  FOREIGN KEY (member_id) REFERENCES members(member_id) ON DELETE SET NULL,
+  FOREIGN KEY (recorded_by_user_id) REFERENCES users(user_id) ON DELETE RESTRICT,
   INDEX idx_member_id (member_id),
-  INDEX idx_partnerships_service (service_id),
-  INDEX idx_partnerships_program (program_id),
-  INDEX idx_partnerships_date (date_given)
+  INDEX idx_date_given (date_given),
+  INDEX idx_amount (amount)
+);
+
+-- Add foreign key constraints for partnerships
+ALTER TABLE partnerships
+ADD CONSTRAINT fk_partnerships_service
+FOREIGN KEY (service_id) REFERENCES services(service_id)
+ON DELETE SET NULL;
+
+ALTER TABLE partnerships
+ADD CONSTRAINT fk_partnerships_program
+FOREIGN KEY (program_id) REFERENCES programs(program_id)
+ON DELETE SET NULL;
+
+
+-- Audit logs table
+CREATE TABLE audit_logs (
+    log_id INT PRIMARY KEY AUTO_INCREMENT,
+    action_type VARCHAR(50) NOT NULL,
+    target_table VARCHAR(50) NOT NULL,
+    target_id INT NOT NULL,
+    performed_by_user_id INT NOT NULL,
+    before_json JSON,
+    after_json JSON,
+    reason TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (performed_by_user_id) REFERENCES users(user_id) ON DELETE RESTRICT,
+    INDEX idx_action_type (action_type),
+    INDEX idx_target_table (target_table),
+    INDEX idx_performed_by (performed_by_user_id),
+    INDEX idx_timestamp (timestamp)
 );
 
 -- ==================== ORGANIZATION INFO ====================
@@ -212,6 +254,13 @@ CREATE TABLE IF NOT EXISTS organization_info (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
+
+-- Add foreign key constraints that reference services table
+ALTER TABLE first_timers ADD FOREIGN KEY (service_id) REFERENCES services(service_id) ON DELETE CASCADE;
+
+-- Add foreign key constraint for users assigned_cell_id
+ALTER TABLE users ADD FOREIGN KEY (assigned_cell_id) REFERENCES cells(cell_id) ON DELETE SET NULL;
+
 
 -- Insert default organization info
 INSERT INTO organization_info (name, address, phone, email) 
