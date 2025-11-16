@@ -65,19 +65,19 @@ export default function HomePage() {
       <section className="py-20 px-4 relative overflow-hidden">
         {/* Animated Background Pattern */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 animate-pulse" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5" />
           <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10" />
         </div>
 
         <div className="container mx-auto max-w-7xl relative">
           {/* Welcome Message at Top */}
           <div className="text-center mb-16">
-            <Badge className="mb-6 bg-gradient-to-r from-primary to-secondary text-primary-foreground text-xl px-8 py-3 shadow-2xl animate-pulse">
-              Welcome Home
-            </Badge>
-            <h1 className="text-6xl font-bold mb-8 bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent animate-pulse">
-              Join Our Family
-            </h1>
+            <div className="inline-block">
+              <h1 className="text-6xl font-bold mb-4 text-foreground">
+                Welcome Home
+              </h1>
+              <div className="h-1 w-32 mx-auto mb-8 bg-gradient-to-r from-primary to-secondary rounded-full" />
+            </div>
             <p className="text-2xl text-muted-foreground text-pretty max-w-3xl mx-auto leading-relaxed">
               Experience the warmth of our community and the transformative
               power of God's Word in a place where you truly belong
@@ -115,44 +115,50 @@ export default function HomePage() {
 
             {/* Right Side - Action Cards */}
             <div className="space-y-8">
-              <div className="grid md:grid-cols-2 gap-6">
-                <Card className="border-0 shadow-2xl bg-gradient-to-br from-primary/10 via-transparent to-secondary/10 backdrop-blur-xl hover:from-primary/20 hover:to-secondary/20 transition-all duration-300 group hover:scale-105">
-                  <CardContent className="p-8 text-center">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary/30 to-secondary/30 backdrop-blur-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                      <span className="text-4xl">🙏</span>
+              <div className="space-y-6">
+                {/* Prayer & Worship Card */}
+                <div className="p-8 hover:bg-muted/30 transition-all duration-300 rounded-lg border border-border">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-xl font-bold mb-2 text-foreground">
+                        Prayer & Worship
+                      </h4>
+                      <p className="text-muted-foreground">
+                        Join us in powerful prayers and uplifting worship
+                      </p>
                     </div>
-                    <h4 className="text-xl font-bold mb-2 text-foreground">
-                      Prayer & Worship
-                    </h4>
-                    <p className="text-muted-foreground">
-                      Join us in powerful prayers and uplifting worship
-                    </p>
-                    <Button className="mt-4 w-full bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-primary-foreground shadow-xl">
+                    <Button
+                      variant="outline"
+                      className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                    >
                       Join Prayer
                     </Button>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
-                <Card className="border-0 shadow-2xl bg-gradient-to-br from-secondary/10 via-transparent to-primary/10 backdrop-blur-xl hover:from-secondary/20 hover:to-primary/20 transition-all duration-300 group hover:scale-105">
-                  <CardContent className="p-8 text-center">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-secondary/30 to-primary/30 backdrop-blur-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                      <span className="text-4xl">📖</span>
+                {/* Study & Grow Card */}
+                <div className="p-8 hover:bg-muted/30 transition-all duration-300 rounded-lg border border-border">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-xl font-bold mb-2 text-foreground">
+                        Study & Grow
+                      </h4>
+                      <p className="text-muted-foreground">
+                        Deep dive into God's Word and grow in grace
+                      </p>
                     </div>
-                    <h4 className="text-xl font-bold mb-2 text-foreground">
-                      Study & Grow
-                    </h4>
-                    <p className="text-muted-foreground">
-                      Deep dive into God's Word and grow in grace
-                    </p>
-                    <Button className="mt-4 w-full bg-gradient-to-r from-secondary to-primary hover:from-secondary/90 hover:to-primary/90 text-primary-foreground shadow-xl">
+                    <Button
+                      variant="outline"
+                      className="w-full group-hover:bg-secondary group-hover:text-secondary-foreground transition-colors"
+                    >
                       Learn More
                     </Button>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
 
-              {/* Welcome Message with Gradient */}
-              <div className="mt-8 p-8 rounded-2xl bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 backdrop-blur-xl">
+              {/* Welcome Message */}
+              <div className="p-8 rounded-2xl bg-muted/50">
                 <h4 className="text-2xl font-bold mb-4 text-center text-foreground">
                   A Place to Call Home
                 </h4>

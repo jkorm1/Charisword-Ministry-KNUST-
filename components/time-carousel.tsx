@@ -28,6 +28,11 @@ const timeSlides: TimeSlide[] = [
   {
     time: "10:30 AM",
     title: "Sunday Service",
+    image: "/time-kofiNo7.jpg",
+  },
+  {
+    time: "10:30 AM",
+    title: "Sunday Service",
     image: "/time-30.jpg",
   },
   {
