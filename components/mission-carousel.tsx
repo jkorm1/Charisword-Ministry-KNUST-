@@ -23,7 +23,7 @@ const missionSlides: MissionSlide[] = [
   {
     title: "The Super-Life",
     description:
-      "Bringing the Body of Christ to Consciousness of The Super-Life",
+      "Bringing the Body of Christ to Consciousness of The Supernatural",
     image: "/superlife.jpg", // Can be replaced with Pinterest URL
   },
   {
